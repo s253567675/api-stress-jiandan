@@ -96,9 +96,9 @@ export function LogPanel({ logs }: LogPanelProps) {
               暂无日志
             </div>
           ) : (
-            logs.slice(-100).map((log) => (
+            logs.slice(-100).map((log, index) => (
               <div
-                key={log.id}
+                key={`${log.id}-${log.timestamp}-${index}`}
                 className={cn(
                   'flex items-center gap-3 py-1.5 px-2 rounded text-xs font-mono',
                   'bg-muted/30 hover:bg-muted/50 transition-colors',

@@ -385,7 +385,7 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                     <div className="space-y-2">
                       {logs.filter(l => !l.success).slice(-20).reverse().map((log, index) => (
                         <div 
-                          key={`${log.id}-${index}`}
+                          key={`error-${log.id}-${log.timestamp}-${index}`}
                           className="flex items-center justify-between p-2 bg-destructive/10 rounded text-xs"
                         >
                           <div className="flex items-center gap-2">
@@ -472,7 +472,7 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                 <div className="space-y-1">
                   {logs.slice(-30).reverse().map((log, index) => (
                     <div 
-                      key={`${log.id}-${index}`}
+                      key={`recent-${log.id}-${log.timestamp}-${index}`}
                       className={`flex items-center justify-between p-2 rounded text-xs cursor-pointer hover:bg-muted/50 ${
                         log.success ? 'bg-chart-3/10' : 'bg-destructive/10'
                       }`}
