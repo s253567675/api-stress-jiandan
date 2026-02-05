@@ -16,9 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Play, Square, Pause, RotateCcw, Settings, Zap, Clock, Target, 
-  AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe
+  AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe, TrendingUp
 } from 'lucide-react';
-import type { TestConfig, TestStatus, SuccessCondition } from '@/hooks/useStressTest';
+import type { TestConfig, TestStatus, SuccessCondition, RampUpConfig } from '@/hooks/useStressTest';
 
 interface ConfigPanelProps {
   onStart: (config: TestConfig) => void;
@@ -49,6 +49,14 @@ const defaultConfig: TestConfig = {
     field: 'code',
     operator: 'equals',
     value: '0',
+  },
+  rampUp: {
+    enabled: false,
+    duration: 10,
+    startQps: 1,
+    mode: 'linear',
+    stepInterval: 5,
+    stepSize: 10,
   },
 };
 
@@ -703,6 +711,163 @@ export function ConfigPanel({
           </TabsContent>
 
           <TabsContent value="advanced" className="space-y-4 mt-4">
+            {/* Ramp-up Mode */}
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  递增模式 (Ramp-up)
+                </Label>
+                <Switch
+                  checked={config.rampUp?.enabled || false}
+                  onCheckedChange={(checked) => setConfig(prev => ({
+                    ...prev,
+                    rampUp: { ...prev.rampUp!, enabled: checked }
+                  }))}
+                  disabled={!isIdle}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {config.rampUp?.enabled
+                  ? '从较低QPS逐步增加到目标QPS，模拟真实流量增长'
+                  : '测试开始时立即使用目标QPS'}
+              </p>
+              
+              {config.rampUp?.enabled && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  {/* Ramp-up Mode Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">递增方式</Label>
+                    <Select
+                      value={config.rampUp?.mode || 'linear'}
+                      onValueChange={(value) => setConfig(prev => ({
+                        ...prev,
+                        rampUp: { ...prev.rampUp!, mode: value as 'linear' | 'step' }
+                      }))}
+                      disabled={!isIdle}
+                    >
+                      <SelectTrigger className="bg-input">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="linear">线性递增</SelectItem>
+                        <SelectItem value="step">阶梯递增</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {config.rampUp?.mode === 'linear' 
+                        ? '平滑地从起始QPS增加到目标QPS' 
+                        : '每隔固定时间增加固定QPS'}
+                    </p>
+                  </div>
+                  
+                  {/* Start QPS */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">起始QPS</Label>
+                      <Input
+                        type="number"
+                        value={config.rampUp?.startQps || 1}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          rampUp: { ...prev.rampUp!, startQps: Math.max(1, parseInt(e.target.value) || 1) }
+                        }))}
+                        min={1}
+                        className="w-20 h-7 bg-input text-sm font-mono text-right"
+                        disabled={!isIdle}
+                      />
+                    </div>
+                    <Slider
+                      value={[config.rampUp?.startQps || 1]}
+                      onValueChange={([value]) => setConfig(prev => ({
+                        ...prev,
+                        rampUp: { ...prev.rampUp!, startQps: value }
+                      }))}
+                      min={1}
+                      max={Math.max(config.qps - 1, 10)}
+                      step={1}
+                      disabled={!isIdle}
+                      className="py-2"
+                    />
+                  </div>
+                  
+                  {/* Ramp-up Duration */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">递增时长 (秒)</Label>
+                      <Input
+                        type="number"
+                        value={config.rampUp?.duration || 10}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          rampUp: { ...prev.rampUp!, duration: Math.max(1, parseInt(e.target.value) || 10) }
+                        }))}
+                        min={1}
+                        className="w-20 h-7 bg-input text-sm font-mono text-right"
+                        disabled={!isIdle}
+                      />
+                    </div>
+                    <Slider
+                      value={[config.rampUp?.duration || 10]}
+                      onValueChange={([value]) => setConfig(prev => ({
+                        ...prev,
+                        rampUp: { ...prev.rampUp!, duration: value }
+                      }))}
+                      min={5}
+                      max={120}
+                      step={5}
+                      disabled={!isIdle}
+                      className="py-2"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      从 {config.rampUp?.startQps || 1} QPS 增加到 {config.qps} QPS 需要 {config.rampUp?.duration || 10} 秒
+                    </p>
+                  </div>
+                  
+                  {/* Step Mode Settings */}
+                  {config.rampUp?.mode === 'step' && (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">阶梯间隔 (秒)</Label>
+                          <Input
+                            type="number"
+                            value={config.rampUp?.stepInterval || 5}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              rampUp: { ...prev.rampUp!, stepInterval: Math.max(1, parseInt(e.target.value) || 5) }
+                            }))}
+                            min={1}
+                            className="w-20 h-7 bg-input text-sm font-mono text-right"
+                            disabled={!isIdle}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">每步增加QPS</Label>
+                          <Input
+                            type="number"
+                            value={config.rampUp?.stepSize || 10}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              rampUp: { ...prev.rampUp!, stepSize: Math.max(1, parseInt(e.target.value) || 10) }
+                            }))}
+                            min={1}
+                            className="w-20 h-7 bg-input text-sm font-mono text-right"
+                            disabled={!isIdle}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          每 {config.rampUp?.stepInterval || 5} 秒增加 {config.rampUp?.stepSize || 10} QPS
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Proxy Mode Toggle */}
             <div className="space-y-2 p-3 rounded-lg bg-muted/50 border border-border">
               <div className="flex items-center justify-between">

@@ -15,6 +15,16 @@ export interface SuccessCondition {
   value: string; // Expected value (string representation)
 }
 
+// Ramp-up configuration for gradual load increase
+export interface RampUpConfig {
+  enabled: boolean;
+  duration: number; // Ramp-up duration in seconds
+  startQps: number; // Starting QPS (default 1)
+  mode: 'linear' | 'step'; // Linear or step increase
+  stepInterval?: number; // For step mode: interval between steps in seconds
+  stepSize?: number; // For step mode: QPS increase per step
+}
+
 export interface TestConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -27,6 +37,7 @@ export interface TestConfig {
   useProxy: boolean; // Whether to use backend proxy
   timeout: number; // Request timeout in milliseconds
   successCondition?: SuccessCondition; // Custom success condition based on response body
+  rampUp?: RampUpConfig; // Optional ramp-up configuration
 }
 
 export interface RequestResult {
@@ -434,10 +445,39 @@ export function useStressTest() {
       ? config.qps * config.duration 
       : config.totalRequests;
 
-    // Calculate interval between requests based on QPS
-    const intervalMs = 1000 / config.qps;
+    // Ramp-up configuration
+    const rampUp = config.rampUp;
+    const targetQps = config.qps;
+    const startQps = rampUp?.enabled ? (rampUp.startQps || 1) : targetQps;
+    const rampUpDuration = rampUp?.enabled ? (rampUp.duration || 10) : 0;
+    const rampUpMode = rampUp?.mode || 'linear';
+    const stepInterval = rampUp?.stepInterval || 5;
+    const stepSize = rampUp?.stepSize || Math.ceil((targetQps - startQps) / (rampUpDuration / stepInterval));
+
+    // Function to calculate current QPS based on elapsed time
+    const getCurrentQps = (): number => {
+      if (!rampUp?.enabled) return targetQps;
+      
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      
+      // After ramp-up duration, use target QPS
+      if (elapsed >= rampUpDuration) return targetQps;
+      
+      if (rampUpMode === 'linear') {
+        // Linear interpolation from startQps to targetQps
+        const progress = elapsed / rampUpDuration;
+        return Math.round(startQps + (targetQps - startQps) * progress);
+      } else {
+        // Step mode: increase by stepSize every stepInterval seconds
+        const steps = Math.floor(elapsed / stepInterval);
+        const currentQps = startQps + steps * stepSize;
+        return Math.min(currentQps, targetQps);
+      }
+    };
+
     let requestsSent = 0;
     let pendingRequests: Promise<void>[] = [];
+    let currentIntervalMs = 1000 / startQps;
 
     // Start metrics update interval
     intervalRef.current = setInterval(updateMetrics, 500);
@@ -448,7 +488,9 @@ export function useStressTest() {
       // Check if we should stop based on duration or total requests
       if (config.duration > 0) {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        if (elapsed >= config.duration) return;
+        // For ramp-up mode, total duration = rampUpDuration + config.duration
+        const totalDuration = rampUp?.enabled ? (rampUpDuration + config.duration) : config.duration;
+        if (elapsed >= totalDuration) return;
       } else if (requestsSent >= totalRequests) {
         return;
       }
@@ -476,21 +518,50 @@ export function useStressTest() {
       }
     };
 
-    // QPS-controlled request sending
-    qpsIntervalRef.current = setInterval(() => {
-      if (!signal.aborted && !isPausedRef.current && !isAbortedRef.current) {
-        sendRequest();
+    // Dynamic QPS control with ramp-up support
+    let lastQpsUpdate = Date.now();
+    let accumulatedTime = 0;
+    
+    const dynamicQpsLoop = () => {
+      if (signal.aborted || isAbortedRef.current) return;
+      
+      const now = Date.now();
+      const deltaTime = now - lastQpsUpdate;
+      lastQpsUpdate = now;
+      
+      if (!isPausedRef.current) {
+        const currentQps = getCurrentQps();
+        const intervalMs = 1000 / currentQps;
+        
+        accumulatedTime += deltaTime;
+        
+        // Send requests based on accumulated time
+        while (accumulatedTime >= intervalMs) {
+          accumulatedTime -= intervalMs;
+          sendRequest();
+        }
       }
-    }, intervalMs);
+      
+      // Schedule next iteration
+      qpsIntervalRef.current = setTimeout(dynamicQpsLoop, 10) as unknown as NodeJS.Timeout;
+    };
+    
+    // Start the dynamic QPS loop
+    dynamicQpsLoop();
 
     // Wait for completion
     const checkCompletion = async () => {
+      // Calculate total duration including ramp-up
+      const totalDuration = rampUp?.enabled 
+        ? (rampUpDuration + config.duration) 
+        : config.duration;
+      
       while (!signal.aborted && !isAbortedRef.current) {
         await new Promise(resolve => setTimeout(resolve, 100));
         
         if (config.duration > 0) {
           const elapsed = (Date.now() - startTimeRef.current) / 1000;
-          if (elapsed >= config.duration && activeConnectionsRef.current === 0) {
+          if (elapsed >= totalDuration && activeConnectionsRef.current === 0) {
             break;
           }
         } else if (resultsRef.current.length >= totalRequests) {
@@ -503,7 +574,7 @@ export function useStressTest() {
 
     // Cleanup
     if (qpsIntervalRef.current) {
-      clearInterval(qpsIntervalRef.current);
+      clearTimeout(qpsIntervalRef.current);
       qpsIntervalRef.current = null;
     }
     if (intervalRef.current) {
@@ -531,7 +602,7 @@ export function useStressTest() {
       abortControllerRef.current.abort();
     }
     if (qpsIntervalRef.current) {
-      clearInterval(qpsIntervalRef.current);
+      clearTimeout(qpsIntervalRef.current);
       qpsIntervalRef.current = null;
     }
     if (intervalRef.current) {
