@@ -81,9 +81,18 @@ check_system() {
 update_system() {
     step "更新系统软件包..."
     
+    # 设置完全非交互式模式
     export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+    
+    # 配置 apt 自动处理配置文件冲突
     sudo apt-get update -qq >> "$LOG_FILE" 2>&1
-    sudo apt-get upgrade -y -qq >> "$LOG_FILE" 2>&1
+    
+    # 使用 -o 选项确保完全非交互式
+    sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+        -o Dpkg::Options::="--force-confdef" \
+        -o Dpkg::Options::="--force-confold" \
+        >> "$LOG_FILE" 2>&1 || true
     
     info "系统更新完成"
     log "系统更新完成"
@@ -142,13 +151,18 @@ install_pm2() {
 install_mysql() {
     step "安装 MySQL 数据库..."
     
+    # 设置完全非交互式模式
     export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
     
     if command -v mysql &> /dev/null; then
         info "MySQL 已安装"
     else
         # 非交互式安装 MySQL
-        sudo apt-get install -y mysql-server >> "$LOG_FILE" 2>&1
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server \
+            -o Dpkg::Options::="--force-confdef" \
+            -o Dpkg::Options::="--force-confold" \
+            >> "$LOG_FILE" 2>&1
         
         # 启动 MySQL 服务
         sudo systemctl start mysql >> "$LOG_FILE" 2>&1 || true
@@ -197,8 +211,14 @@ install_mysql() {
 install_dependencies() {
     step "安装其他依赖 (Git, Nginx)..."
     
+    # 设置完全非交互式模式
     export DEBIAN_FRONTEND=noninteractive
-    sudo apt-get install -y git nginx curl >> "$LOG_FILE" 2>&1
+    export NEEDRESTART_MODE=a
+    
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git nginx curl \
+        -o Dpkg::Options::="--force-confdef" \
+        -o Dpkg::Options::="--force-confold" \
+        >> "$LOG_FILE" 2>&1
     
     info "依赖安装完成"
     log "依赖安装完成"
@@ -377,15 +397,22 @@ EOF
 setup_firewall() {
     step "配置防火墙规则..."
     
+    # 设置完全非交互式模式
+    export DEBIAN_FRONTEND=noninteractive
+    
     # 检查 ufw 是否安装
     if ! command -v ufw &> /dev/null; then
-        sudo apt-get install -y ufw >> "$LOG_FILE" 2>&1
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ufw \
+            -o Dpkg::Options::="--force-confdef" \
+            -o Dpkg::Options::="--force-confold" \
+            >> "$LOG_FILE" 2>&1
     fi
     
+    # 非交互式配置防火墙
     sudo ufw allow 22/tcp >> "$LOG_FILE" 2>&1 || true
     sudo ufw allow 80/tcp >> "$LOG_FILE" 2>&1 || true
     sudo ufw allow 443/tcp >> "$LOG_FILE" 2>&1 || true
-    sudo ufw --force enable >> "$LOG_FILE" 2>&1 || true
+    echo "y" | sudo ufw enable >> "$LOG_FILE" 2>&1 || true
     
     info "防火墙配置完成"
     log "防火墙配置完成"
