@@ -204,19 +204,23 @@ export function ErrorRateChart({ data }: ErrorRateChartProps) {
 
 interface StatusCodeChartProps {
   statusCodes: Record<number, number>;
+  businessCodes?: Record<string, number>;
+  useBusinessCode?: boolean;
 }
 
-export function StatusCodeChart({ statusCodes }: StatusCodeChartProps) {
-  const data = Object.entries(statusCodes).map(([code, count]) => ({
+export function StatusCodeChart({ statusCodes, businessCodes, useBusinessCode = true }: StatusCodeChartProps) {
+  // 优先使用业务状态码
+  const codes = useBusinessCode && businessCodes ? businessCodes : statusCodes;
+  const data = Object.entries(codes).map(([code, count]) => ({
     code,
     count,
-    color: getStatusColor(parseInt(code)),
+    color: useBusinessCode && businessCodes ? getBusinessCodeColor(code) : getStatusColor(parseInt(code)),
   }));
 
   return (
     <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-        状态码分布
+        {useBusinessCode && businessCodes ? '业务状态码分布' : 'HTTP状态码分布'}
       </h3>
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="85%">
@@ -266,6 +270,14 @@ function getStatusColor(code: number): string {
   if (code >= 400 && code < 500) return '#f59e0b'; // Client error - amber
   if (code >= 500) return '#ef4444'; // Server error - red
   return '#64748b'; // Unknown - gray
+}
+
+function getBusinessCodeColor(code: string): string {
+  const numCode = parseInt(code);
+  if (code === '0' || code === 'success' || code === 'ok') return '#22c55e'; // Success - green
+  if (numCode === 0) return '#22c55e'; // Success - green
+  if (code === 'N/A' || code === 'null' || code === 'undefined') return '#64748b'; // Unknown - gray
+  return '#ef4444'; // Error - red (any non-zero code is considered error)
 }
 
 interface LatencyDistributionProps {
@@ -326,9 +338,10 @@ export function LatencyDistribution({ metrics }: LatencyDistributionProps) {
 interface SuccessRatePieProps {
   successCount: number;
   failCount: number;
+  label?: string;
 }
 
-export function SuccessRatePie({ successCount, failCount }: SuccessRatePieProps) {
+export function SuccessRatePie({ successCount, failCount, label = '业务成功率' }: SuccessRatePieProps) {
   const total = successCount + failCount;
   const data = [
     { name: '成功', value: successCount, fill: '#22c55e' },
@@ -340,8 +353,9 @@ export function SuccessRatePie({ successCount, failCount }: SuccessRatePieProps)
   return (
     <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-        成功率
+        {label}
       </h3>
+      <p className="text-xs text-muted-foreground -mt-2 mb-2">基于响应体code字段判断</p>
       <div className="h-[85%] flex items-center">
         <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">

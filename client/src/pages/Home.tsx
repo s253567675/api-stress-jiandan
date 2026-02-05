@@ -184,7 +184,7 @@ export default function Home() {
           {/* Charts Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ErrorRateChart data={timeSeries} />
-            <StatusCodeChart statusCodes={metrics.statusCodes} />
+            <StatusCodeChart statusCodes={metrics.statusCodes} businessCodes={metrics.businessCodes} useBusinessCode={true} />
           </div>
 
           {/* Charts Row 3 */}
