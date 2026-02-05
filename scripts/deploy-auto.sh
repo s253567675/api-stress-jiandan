@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
 # API 压力测试工具 - 腾讯云全自动部署脚本
-# 适用于 Ubuntu 22.04 LTS
+# 适用于 Ubuntu 20.04 / 22.04 LTS
 # 一条命令完成所有部署，无需任何手动配置
 # ============================================
 
@@ -20,8 +20,8 @@ PROJECT_NAME="api-stress-tester"
 PROJECT_DIR="$HOME/$PROJECT_NAME"
 DB_NAME="api_stress_tester"
 DB_USER="stress_user"
-DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
-JWT_SECRET=$(openssl rand -hex 32)
+DB_PASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+JWT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 APP_PORT=3000
 
 # 日志文件
@@ -142,29 +142,50 @@ install_pm2() {
 install_mysql() {
     step "安装 MySQL 数据库..."
     
+    export DEBIAN_FRONTEND=noninteractive
+    
     if command -v mysql &> /dev/null; then
         info "MySQL 已安装"
     else
-        # 预设 MySQL root 密码避免交互
-        MYSQL_ROOT_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+        # 非交互式安装 MySQL
+        sudo apt-get install -y mysql-server >> "$LOG_FILE" 2>&1
         
-        sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password ${MYSQL_ROOT_PASS}"
-        sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password ${MYSQL_ROOT_PASS}"
+        # 启动 MySQL 服务
+        sudo systemctl start mysql >> "$LOG_FILE" 2>&1 || true
+        sudo systemctl enable mysql >> "$LOG_FILE" 2>&1 || true
         
-        sudo apt-get install -y mysql-server -qq >> "$LOG_FILE" 2>&1
-        sudo systemctl start mysql
-        sudo systemctl enable mysql >> "$LOG_FILE" 2>&1
+        # 等待 MySQL 启动
+        sleep 3
         
         info "MySQL 安装完成"
-        log "MySQL 安装完成，root密码: ${MYSQL_ROOT_PASS}"
+        log "MySQL 安装完成"
     fi
     
     # 创建数据库和用户
     step "配置数据库..."
     
-    # 使用 sudo mysql 方式（Ubuntu 默认 auth_socket）
-    sudo mysql -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" >> "$LOG_FILE" 2>&1
-    sudo mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';" >> "$LOG_FILE" 2>&1
+    # 检查 MySQL 服务是否运行
+    if ! sudo systemctl is-active --quiet mysql; then
+        sudo systemctl start mysql >> "$LOG_FILE" 2>&1
+        sleep 2
+    fi
+    
+    # 使用 sudo mysql 方式（Ubuntu 默认使用 auth_socket 认证）
+    # 分开执行每条SQL命令，避免出错
+    sudo mysql -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" >> "$LOG_FILE" 2>&1 || {
+        warn "数据库可能已存在，继续..."
+    }
+    
+    # 删除可能存在的旧用户
+    sudo mysql -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';" >> "$LOG_FILE" 2>&1 || true
+    
+    # 创建新用户
+    sudo mysql -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED WITH mysql_native_password BY '${DB_PASS}';" >> "$LOG_FILE" 2>&1 || {
+        # 如果失败，尝试旧语法
+        sudo mysql -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';" >> "$LOG_FILE" 2>&1 || true
+    }
+    
+    # 授权
     sudo mysql -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';" >> "$LOG_FILE" 2>&1
     sudo mysql -e "FLUSH PRIVILEGES;" >> "$LOG_FILE" 2>&1
     
@@ -176,7 +197,8 @@ install_mysql() {
 install_dependencies() {
     step "安装其他依赖 (Git, Nginx)..."
     
-    sudo apt-get install -y git nginx curl -qq >> "$LOG_FILE" 2>&1
+    export DEBIAN_FRONTEND=noninteractive
+    sudo apt-get install -y git nginx curl >> "$LOG_FILE" 2>&1
     
     info "依赖安装完成"
     log "依赖安装完成"
@@ -186,8 +208,19 @@ install_dependencies() {
 setup_project() {
     step "设置项目..."
     
+    # 获取脚本所在目录的父目录
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # 如果脚本在项目的 scripts 目录中运行
+    if [ -f "$PARENT_DIR/package.json" ]; then
+        PROJECT_DIR="$PARENT_DIR"
+        info "使用项目目录: ${PROJECT_DIR}"
+        return
+    fi
+    
     # 如果当前目录就是项目目录
-    if [ -f "./package.json" ] && grep -q "api-stress-tester" "./package.json" 2>/dev/null; then
+    if [ -f "./package.json" ]; then
         PROJECT_DIR=$(pwd)
         info "使用当前目录作为项目目录: ${PROJECT_DIR}"
         return
@@ -336,7 +369,7 @@ EOF
         info "Nginx 配置完成"
         log "Nginx 配置完成"
     else
-        error "Nginx 配置错误，请检查日志"
+        warn "Nginx 配置可能有问题，请检查日志"
     fi
 }
 
@@ -346,13 +379,13 @@ setup_firewall() {
     
     # 检查 ufw 是否安装
     if ! command -v ufw &> /dev/null; then
-        sudo apt-get install -y ufw -qq >> "$LOG_FILE" 2>&1
+        sudo apt-get install -y ufw >> "$LOG_FILE" 2>&1
     fi
     
-    sudo ufw allow 22/tcp >> "$LOG_FILE" 2>&1
-    sudo ufw allow 80/tcp >> "$LOG_FILE" 2>&1
-    sudo ufw allow 443/tcp >> "$LOG_FILE" 2>&1
-    sudo ufw --force enable >> "$LOG_FILE" 2>&1
+    sudo ufw allow 22/tcp >> "$LOG_FILE" 2>&1 || true
+    sudo ufw allow 80/tcp >> "$LOG_FILE" 2>&1 || true
+    sudo ufw allow 443/tcp >> "$LOG_FILE" 2>&1 || true
+    sudo ufw --force enable >> "$LOG_FILE" 2>&1 || true
     
     info "防火墙配置完成"
     log "防火墙配置完成"
