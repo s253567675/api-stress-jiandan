@@ -13,6 +13,7 @@ import { MetricCard, MetricGrid } from '@/components/MetricCard';
 import { QpsChart, LatencyChart, ErrorRateChart, StatusCodeChart, LatencyDistribution, SuccessRatePie } from '@/components/Charts';
 import { LogPanel } from '@/components/LogPanel';
 import { StatusIndicator } from '@/components/StatusIndicator';
+import { ResponseViewer } from '@/components/ResponseViewer';
 import { Input } from '@/components/ui/input';
 import { 
   Activity, 
@@ -180,6 +181,9 @@ export default function Home() {
             <SuccessRatePie successCount={metrics.successCount} failCount={metrics.failCount} />
           </div>
 
+          {/* Response Data Visualization */}
+          <ResponseViewer logs={logs} metrics={metrics} />
+
           {/* Log Panel */}
           <LogPanel logs={logs} />
         </main>
@@ -190,7 +194,7 @@ export default function Home() {
         <StatusIndicator status={status} metrics={metrics} />
 
         {/* Detailed Latency Stats */}
-        <div className="data-card">
+        <div className="rounded-lg border border-border bg-card/50 p-4">
           <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
             延迟百分位
           </h3>
@@ -215,7 +219,7 @@ export default function Home() {
         </div>
 
         {/* Status Codes Summary */}
-        <div className="data-card">
+        <div className="rounded-lg border border-border bg-card/50 p-4">
           <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
             状态码统计
           </h3>
@@ -238,7 +242,7 @@ export default function Home() {
         </div>
 
         {/* Test Info */}
-        <div className="data-card">
+        <div className="rounded-lg border border-border bg-card/50 p-4">
           <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
             测试信息
           </h3>
