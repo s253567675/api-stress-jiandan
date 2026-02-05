@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, testRecords, InsertTestRecord, TestRecord } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,107 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Test Records CRUD operations
+
+/**
+ * Create a new test record
+ */
+export async function createTestRecord(record: InsertTestRecord): Promise<number | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot create test record: database not available");
+    return null;
+  }
+
+  try {
+    const result = await db.insert(testRecords).values(record);
+    return result[0].insertId;
+  } catch (error) {
+    console.error("[Database] Failed to create test record:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all test records, ordered by creation date (newest first)
+ */
+export async function getTestRecords(limit: number = 50): Promise<TestRecord[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get test records: database not available");
+    return [];
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(testRecords)
+      .orderBy(desc(testRecords.createdAt))
+      .limit(limit);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get test records:", error);
+    return [];
+  }
+}
+
+/**
+ * Get a single test record by ID
+ */
+export async function getTestRecordById(id: number): Promise<TestRecord | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get test record: database not available");
+    return null;
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(testRecords)
+      .where(eq(testRecords.id, id))
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("[Database] Failed to get test record:", error);
+    return null;
+  }
+}
+
+/**
+ * Delete a test record by ID
+ */
+export async function deleteTestRecord(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot delete test record: database not available");
+    return false;
+  }
+
+  try {
+    await db.delete(testRecords).where(eq(testRecords.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete test record:", error);
+    return false;
+  }
+}
+
+/**
+ * Update test record name
+ */
+export async function updateTestRecordName(id: number, name: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update test record: database not available");
+    return false;
+  }
+
+  try {
+    await db.update(testRecords).set({ name }).where(eq(testRecords.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update test record:", error);
+    return false;
+  }
+}

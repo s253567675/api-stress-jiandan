@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
+import { createTestRecord, getTestRecords, getTestRecordById, deleteTestRecord, updateTestRecordName } from "./db";
 
 export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -79,6 +80,80 @@ export const appRouter = router({
             error: isTimeout ? `Request timeout after ${input.timeout}ms` : (error instanceof Error ? error.message : 'Unknown error'),
           };
         }
+      }),
+  }),
+
+  // Test Records - Save and retrieve stress test results
+  testRecords: router({
+    // Create a new test record
+    create: publicProcedure
+      .input(z.object({
+        name: z.string().min(1).max(255),
+        url: z.string(),
+        method: z.string(),
+        config: z.any().optional(),
+        status: z.enum(['completed', 'failed', 'cancelled']).default('completed'),
+        totalRequests: z.number(),
+        successCount: z.number(),
+        failCount: z.number(),
+        avgLatency: z.number(),
+        minLatency: z.number(),
+        maxLatency: z.number(),
+        p50Latency: z.number(),
+        p90Latency: z.number(),
+        p95Latency: z.number(),
+        p99Latency: z.number(),
+        throughput: z.number(),
+        errorRate: z.number(),
+        duration: z.number(),
+        statusCodes: z.any().optional(),
+        businessCodes: z.any().optional(),
+        timeSeries: z.any().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createTestRecord(input);
+        return { success: !!id, id };
+      }),
+
+    // Get all test records
+    list: publicProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(100).optional().default(50),
+      }).optional())
+      .query(async ({ input }) => {
+        const records = await getTestRecords(input?.limit ?? 50);
+        return records;
+      }),
+
+    // Get a single test record by ID
+    getById: publicProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const record = await getTestRecordById(input.id);
+        return record;
+      }),
+
+    // Delete a test record
+    delete: publicProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const success = await deleteTestRecord(input.id);
+        return { success };
+      }),
+
+    // Update test record name
+    updateName: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).max(255),
+      }))
+      .mutation(async ({ input }) => {
+        const success = await updateTestRecordName(input.id, input.name);
+        return { success };
       }),
   }),
 });

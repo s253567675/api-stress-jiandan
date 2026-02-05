@@ -16,6 +16,12 @@ import { StatusIndicator } from '@/components/StatusIndicator';
 import { ResponseViewer } from '@/components/ResponseViewer';
 import { AIAnalysis } from '@/components/AIAnalysis';
 import { ReportExport } from '@/components/ReportExport';
+import { TestHistory } from '@/components/TestHistory';
+import { CompareAnalysis } from '@/components/CompareAnalysis';
+import { trpc } from '@/lib/trpc';
+import { Button } from '@/components/ui/button';
+import { Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { 
   Activity, 
@@ -39,6 +45,7 @@ export default function Home() {
     pauseTest,
     resumeTest,
     resetTest,
+    currentConfig,
   } = useStressTest();
 
   // Editable limits
@@ -47,6 +54,52 @@ export default function Home() {
   
   // AI Analysis result for report export
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
+  
+  // History and comparison
+  const [compareRecords, setCompareRecords] = useState<any[]>([]);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  
+  // Save test record mutation
+  const saveRecordMutation = trpc.testRecords.create.useMutation({
+    onSuccess: () => {
+      toast.success('测试记录已保存');
+    },
+    onError: (error: { message: string }) => {
+      toast.error('保存失败: ' + error.message);
+    },
+  });
+  
+  const handleSaveRecord = () => {
+    if (metrics.completedRequests === 0) {
+      toast.error('暂无测试数据可保存');
+      return;
+    }
+    
+    saveRecordMutation.mutate({
+      name: `测试_${new Date().toLocaleString('zh-CN').replace(/[\/:]/g, '-')}`,
+      url: currentConfig?.url || 'unknown',
+      method: currentConfig?.method || 'POST',
+      totalRequests: metrics.completedRequests,
+      successCount: metrics.successCount,
+      failCount: metrics.failCount,
+      avgLatency: metrics.avgLatency,
+      minLatency: metrics.minLatency,
+      maxLatency: metrics.maxLatency,
+      p50Latency: metrics.p50Latency,
+      p90Latency: metrics.p90Latency,
+      p95Latency: metrics.p95Latency,
+      p99Latency: metrics.p99Latency,
+      throughput: metrics.throughput,
+      errorRate: metrics.errorRate,
+      duration: metrics.elapsedTime,
+      status: status === 'completed' ? 'completed' : status === 'error' ? 'failed' : 'cancelled',
+    });
+  };
+  
+  const handleCompare = (records: any[]) => {
+    setCompareRecords(records);
+    setIsCompareOpen(true);
+  };
 
   const isIdle = status === 'idle' || status === 'completed' || status === 'error';
 
@@ -80,6 +133,21 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm">
+            {/* Save Record Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveRecord}
+              disabled={metrics.completedRequests === 0 || saveRecordMutation.isPending}
+              className="gap-2"
+            >
+              <Save className="w-4 h-4" />
+              保存记录
+            </Button>
+            
+            {/* History Button */}
+            <TestHistory onCompare={handleCompare} />
+            
             {/* Report Export Button */}
             <ReportExport 
               metrics={metrics} 
@@ -309,6 +377,13 @@ export default function Home() {
           </div>
         </div>
       </div>
+      
+      {/* Compare Analysis Dialog */}
+      <CompareAnalysis 
+        records={compareRecords}
+        isOpen={isCompareOpen}
+        onClose={() => setIsCompareOpen(false)}
+      />
     </div>
   );
 }

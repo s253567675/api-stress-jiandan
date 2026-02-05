@@ -586,5 +586,6 @@ export function useStressTest() {
     pauseTest,
     resumeTest,
     resetTest,
+    currentConfig: configRef.current,
   };
 }

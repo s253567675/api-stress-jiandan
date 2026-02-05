@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, bigint } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,63 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Test records table for storing stress test results
+ */
+export const testRecords = mysqlTable("test_records", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Test name/label for easy identification */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Target API URL */
+  url: text("url").notNull(),
+  /** HTTP method used */
+  method: varchar("method", { length: 10 }).notNull(),
+  /** Test configuration (JSON) */
+  config: json("config"),
+  /** Test status: completed, failed, cancelled */
+  status: mysqlEnum("status", ["completed", "failed", "cancelled"]).default("completed").notNull(),
+  
+  // Core metrics
+  /** Total number of requests */
+  totalRequests: int("totalRequests").notNull(),
+  /** Number of successful requests */
+  successCount: int("successCount").notNull(),
+  /** Number of failed requests */
+  failCount: int("failCount").notNull(),
+  /** Average latency in ms */
+  avgLatency: int("avgLatency").notNull(),
+  /** Minimum latency in ms */
+  minLatency: int("minLatency").notNull(),
+  /** Maximum latency in ms */
+  maxLatency: int("maxLatency").notNull(),
+  /** P50 latency in ms */
+  p50Latency: int("p50Latency").notNull(),
+  /** P90 latency in ms */
+  p90Latency: int("p90Latency").notNull(),
+  /** P95 latency in ms */
+  p95Latency: int("p95Latency").notNull(),
+  /** P99 latency in ms */
+  p99Latency: int("p99Latency").notNull(),
+  /** Throughput (requests per second) */
+  throughput: int("throughput").notNull(),
+  /** Error rate percentage */
+  errorRate: int("errorRate").notNull(),
+  /** Test duration in seconds */
+  duration: int("duration").notNull(),
+  
+  // Status code distribution (JSON)
+  statusCodes: json("statusCodes"),
+  /** Business status codes distribution (JSON) */
+  businessCodes: json("businessCodes"),
+  
+  // Time series data for charts (JSON)
+  timeSeries: json("timeSeries"),
+  
+  /** User who ran the test (optional, for multi-user support) */
+  userId: int("userId"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TestRecord = typeof testRecords.$inferSelect;
+export type InsertTestRecord = typeof testRecords.$inferInsert;
