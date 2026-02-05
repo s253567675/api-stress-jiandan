@@ -77,6 +77,7 @@ export interface TimeSeriesPoint {
   latency: number;
   errorRate: number;
   activeConnections: number;
+  targetQps?: number; // Target QPS for ramp-up visualization
 }
 
 export type TestStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error';
@@ -193,6 +194,28 @@ export function useStressTest() {
 
     setMetrics(newMetrics);
 
+    // Calculate target QPS for ramp-up visualization
+    let targetQps = configRef.current?.qps || 0;
+    if (configRef.current?.rampUp?.enabled) {
+      const rampUp = configRef.current.rampUp;
+      const rampUpDuration = rampUp.duration || 10;
+      const startQps = rampUp.startQps || 1;
+      const finalQps = configRef.current.qps;
+      
+      if (elapsed < rampUpDuration) {
+        if (rampUp.mode === 'linear') {
+          const progress = elapsed / rampUpDuration;
+          targetQps = Math.round(startQps + (finalQps - startQps) * progress);
+        } else {
+          // Step mode
+          const stepInterval = rampUp.stepInterval || 5;
+          const stepSize = rampUp.stepSize || Math.ceil((finalQps - startQps) / (rampUpDuration / stepInterval));
+          const steps = Math.floor(elapsed / stepInterval);
+          targetQps = Math.min(startQps + steps * stepSize, finalQps);
+        }
+      }
+    }
+
     // Add time series point
     setTimeSeries(prev => {
       const newPoint: TimeSeriesPoint = {
@@ -201,6 +224,7 @@ export function useStressTest() {
         latency: Math.round(avgLatency),
         errorRate: newMetrics.errorRate,
         activeConnections: activeConnectionsRef.current,
+        targetQps,
       };
       const newSeries = [...prev, newPoint];
       // Keep last 300 points (5 minutes at 1 point/second)

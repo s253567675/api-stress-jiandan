@@ -44,11 +44,28 @@ interface QpsChartProps {
 }
 
 export function QpsChart({ data }: QpsChartProps) {
+  // Check if any data point has targetQps (ramp-up mode)
+  const hasTargetQps = data.some(d => d.targetQps !== undefined && d.targetQps > 0);
+  
   return (
     <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
-      <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-        实时 QPS
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs text-muted-foreground uppercase tracking-wider">
+          实时 QPS
+        </h3>
+        {hasTargetQps && (
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-0.5 bg-[#00d4ff]"></span>
+              <span className="text-muted-foreground">实际QPS</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-0.5 bg-[#f59e0b]" style={{ borderStyle: 'dashed', borderWidth: '1px 0 0 0', borderColor: '#f59e0b' }}></span>
+              <span className="text-muted-foreground">目标QPS</span>
+            </span>
+          </div>
+        )}
+      </div>
       <ResponsiveContainer width="100%" height="85%">
         <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <defs>
@@ -80,8 +97,24 @@ export function QpsChart({ data }: QpsChartProps) {
               color: '#e2e8f0',
             }}
             labelFormatter={(v) => `时间: ${v}s`}
-            formatter={(value: number) => [`${value} req/s`, 'QPS']}
+            formatter={(value: number, name: string) => {
+              if (name === 'targetQps') return [`${value} req/s`, '目标QPS'];
+              return [`${value} req/s`, '实际QPS'];
+            }}
           />
+          {/* Target QPS line (dashed) - rendered first so it's behind */}
+          {hasTargetQps && (
+            <Line
+              type="stepAfter"
+              dataKey="targetQps"
+              stroke="#f59e0b"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {/* Actual QPS area */}
           <Area
             type="monotone"
             dataKey="qps"
