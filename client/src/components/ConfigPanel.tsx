@@ -45,7 +45,7 @@ const defaultConfig: TestConfig = {
   useProxy: true, // Use backend proxy to bypass CORS
   timeout: 30000, // 30 seconds default timeout
   successCondition: {
-    enabled: false,
+    enabled: true,
     field: 'code',
     operator: 'equals',
     value: '0',
