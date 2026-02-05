@@ -17,6 +17,7 @@ export interface TestConfig {
   duration: number; // seconds, 0 means use totalRequests
   totalRequests: number;
   useProxy: boolean; // Whether to use backend proxy
+  timeout: number; // Request timeout in milliseconds
 }
 
 export interface RequestResult {
@@ -263,6 +264,7 @@ export function useStressTest() {
         method: config.method,
         headers: config.headers,
         body: config.method !== 'GET' ? config.body : undefined,
+        timeout: config.timeout,
       });
 
       const endTime = performance.now();

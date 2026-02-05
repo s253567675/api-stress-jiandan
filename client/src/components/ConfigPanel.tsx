@@ -1,7 +1,7 @@
 /*
  * Configuration Panel Component
  * Mission Control Style - Left sidebar for test parameters
- * Features: Import/Export config, URL validation
+ * Features: Import/Export config, URL validation, Proxy mode, Timeout, Authorization
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Play, Square, Pause, RotateCcw, Settings, Zap, Clock, Target, 
-  AlertTriangle, Download, Upload, CheckCircle2, XCircle 
+  AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe
 } from 'lucide-react';
 import type { TestConfig, TestStatus } from '@/hooks/useStressTest';
 
@@ -43,6 +43,7 @@ const defaultConfig: TestConfig = {
   duration: 30,
   totalRequests: 1000,
   useProxy: true, // Use backend proxy to bypass CORS
+  timeout: 30000, // 30 seconds default timeout
 };
 
 // URL validation function
@@ -55,6 +56,9 @@ function isValidUrl(urlString: string): boolean {
     return false;
   }
 }
+
+// Authorization type options
+type AuthType = 'none' | 'bearer' | 'basic' | 'apikey' | 'custom';
 
 export function ConfigPanel({ 
   onStart, 
@@ -73,14 +77,90 @@ export function ConfigPanel({
   const [useDuration, setUseDuration] = useState(true);
   const [urlError, setUrlError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Authorization state
+  const [authType, setAuthType] = useState<AuthType>('none');
+  const [authToken, setAuthToken] = useState('');
+  const [basicUsername, setBasicUsername] = useState('');
+  const [basicPassword, setBasicPassword] = useState('');
+  const [apiKeyName, setApiKeyName] = useState('X-API-Key');
+  const [apiKeyValue, setApiKeyValue] = useState('');
+  const [customAuthHeader, setCustomAuthHeader] = useState('');
+  const [customAuthValue, setCustomAuthValue] = useState('');
+
+  // Update headers when auth changes
+  useEffect(() => {
+    const updateAuthHeaders = () => {
+      let authHeaders: Record<string, string> = {};
+      
+      switch (authType) {
+        case 'bearer':
+          if (authToken.trim()) {
+            authHeaders['Authorization'] = `Bearer ${authToken.trim()}`;
+          }
+          break;
+        case 'basic':
+          if (basicUsername.trim() || basicPassword.trim()) {
+            const credentials = btoa(`${basicUsername}:${basicPassword}`);
+            authHeaders['Authorization'] = `Basic ${credentials}`;
+          }
+          break;
+        case 'apikey':
+          if (apiKeyName.trim() && apiKeyValue.trim()) {
+            authHeaders[apiKeyName.trim()] = apiKeyValue.trim();
+          }
+          break;
+        case 'custom':
+          if (customAuthHeader.trim() && customAuthValue.trim()) {
+            authHeaders[customAuthHeader.trim()] = customAuthValue.trim();
+          }
+          break;
+      }
+      
+      // Merge with existing headers from headersText
+      try {
+        const existingHeaders = headersText.trim() ? JSON.parse(headersText) : {};
+        // Remove old auth headers before adding new ones
+        const cleanedHeaders = { ...existingHeaders };
+        delete cleanedHeaders['Authorization'];
+        if (authType !== 'apikey') {
+          delete cleanedHeaders[apiKeyName];
+        }
+        if (authType !== 'custom') {
+          delete cleanedHeaders[customAuthHeader];
+        }
+        
+        setConfig(prev => ({ 
+          ...prev, 
+          headers: { ...cleanedHeaders, ...authHeaders }
+        }));
+      } catch {
+        setConfig(prev => ({ 
+          ...prev, 
+          headers: authHeaders
+        }));
+      }
+    };
+    
+    updateAuthHeaders();
+  }, [authType, authToken, basicUsername, basicPassword, apiKeyName, apiKeyValue, customAuthHeader, customAuthValue, headersText]);
 
   useEffect(() => {
     try {
       if (headersText.trim()) {
         const parsed = JSON.parse(headersText);
-        setConfig(prev => ({ ...prev, headers: parsed }));
-      } else {
-        setConfig(prev => ({ ...prev, headers: {} }));
+        // Only update non-auth headers
+        const authHeaders: Record<string, string> = {};
+        if (authType === 'bearer' && authToken.trim()) {
+          authHeaders['Authorization'] = `Bearer ${authToken.trim()}`;
+        } else if (authType === 'basic' && (basicUsername.trim() || basicPassword.trim())) {
+          authHeaders['Authorization'] = `Basic ${btoa(`${basicUsername}:${basicPassword}`)}`;
+        } else if (authType === 'apikey' && apiKeyName.trim() && apiKeyValue.trim()) {
+          authHeaders[apiKeyName.trim()] = apiKeyValue.trim();
+        } else if (authType === 'custom' && customAuthHeader.trim() && customAuthValue.trim()) {
+          authHeaders[customAuthHeader.trim()] = customAuthValue.trim();
+        }
+        setConfig(prev => ({ ...prev, headers: { ...parsed, ...authHeaders } }));
       }
     } catch {
       // Invalid JSON, ignore
@@ -128,9 +208,19 @@ export function ConfigPanel({
       qps: config.qps,
       duration: config.duration,
       totalRequests: config.totalRequests,
+      useProxy: config.useProxy,
+      timeout: config.timeout,
       useDuration,
       concurrencyLimit,
       qpsLimit,
+      authType,
+      authToken: authType === 'bearer' ? authToken : '',
+      basicUsername: authType === 'basic' ? basicUsername : '',
+      basicPassword: authType === 'basic' ? basicPassword : '',
+      apiKeyName: authType === 'apikey' ? apiKeyName : '',
+      apiKeyValue: authType === 'apikey' ? apiKeyValue : '',
+      customAuthHeader: authType === 'custom' ? customAuthHeader : '',
+      customAuthValue: authType === 'custom' ? customAuthValue : '',
       exportTime: new Date().toISOString(),
     };
 
@@ -167,6 +257,8 @@ export function ConfigPanel({
           qps: importedData.qps || 100,
           duration: importedData.duration || 30,
           totalRequests: importedData.totalRequests || 1000,
+          useProxy: importedData.useProxy ?? true,
+          timeout: importedData.timeout || 30000,
         }));
 
         // Update headers text
@@ -187,6 +279,18 @@ export function ConfigPanel({
         }
         if (importedData.qpsLimit) {
           onQpsLimitChange(importedData.qpsLimit);
+        }
+
+        // Update auth settings
+        if (importedData.authType) {
+          setAuthType(importedData.authType);
+          setAuthToken(importedData.authToken || '');
+          setBasicUsername(importedData.basicUsername || '');
+          setBasicPassword(importedData.basicPassword || '');
+          setApiKeyName(importedData.apiKeyName || 'X-API-Key');
+          setApiKeyValue(importedData.apiKeyValue || '');
+          setCustomAuthHeader(importedData.customAuthHeader || '');
+          setCustomAuthValue(importedData.customAuthValue || '');
         }
 
         toast.success('配置已导入');
@@ -257,8 +361,9 @@ export function ConfigPanel({
       {/* Config Form */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-muted">
+          <TabsList className="grid w-full grid-cols-3 bg-muted">
             <TabsTrigger value="basic" className="text-xs">基础配置</TabsTrigger>
+            <TabsTrigger value="auth" className="text-xs">认证配置</TabsTrigger>
             <TabsTrigger value="advanced" className="text-xs">高级配置</TabsTrigger>
           </TabsList>
 
@@ -455,10 +560,197 @@ export function ConfigPanel({
             </div>
           </TabsContent>
 
+          {/* Auth Tab */}
+          <TabsContent value="auth" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                认证类型
+              </Label>
+              <Select
+                value={authType}
+                onValueChange={(value) => setAuthType(value as AuthType)}
+                disabled={!isIdle}
+              >
+                <SelectTrigger className="bg-input">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">无认证</SelectItem>
+                  <SelectItem value="bearer">Bearer Token</SelectItem>
+                  <SelectItem value="basic">Basic Auth</SelectItem>
+                  <SelectItem value="apikey">API Key</SelectItem>
+                  <SelectItem value="custom">自定义Header</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {authType === 'bearer' && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Bearer Token</Label>
+                <Input
+                  value={authToken}
+                  onChange={(e) => setAuthToken(e.target.value)}
+                  placeholder="输入您的Bearer Token"
+                  className="bg-input text-sm font-mono"
+                  disabled={!isIdle}
+                  type="password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  将自动添加 Authorization: Bearer {'<token>'} 请求头
+                </p>
+              </div>
+            )}
+
+            {authType === 'basic' && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">用户名</Label>
+                  <Input
+                    value={basicUsername}
+                    onChange={(e) => setBasicUsername(e.target.value)}
+                    placeholder="用户名"
+                    className="bg-input text-sm"
+                    disabled={!isIdle}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">密码</Label>
+                  <Input
+                    value={basicPassword}
+                    onChange={(e) => setBasicPassword(e.target.value)}
+                    placeholder="密码"
+                    className="bg-input text-sm"
+                    disabled={!isIdle}
+                    type="password"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  将自动添加 Authorization: Basic {'<base64>'} 请求头
+                </p>
+              </div>
+            )}
+
+            {authType === 'apikey' && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Header名称</Label>
+                  <Input
+                    value={apiKeyName}
+                    onChange={(e) => setApiKeyName(e.target.value)}
+                    placeholder="X-API-Key"
+                    className="bg-input text-sm font-mono"
+                    disabled={!isIdle}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">API Key值</Label>
+                  <Input
+                    value={apiKeyValue}
+                    onChange={(e) => setApiKeyValue(e.target.value)}
+                    placeholder="输入您的API Key"
+                    className="bg-input text-sm font-mono"
+                    disabled={!isIdle}
+                    type="password"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  将自动添加 {apiKeyName || 'X-API-Key'}: {'<value>'} 请求头
+                </p>
+              </div>
+            )}
+
+            {authType === 'custom' && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Header名称</Label>
+                  <Input
+                    value={customAuthHeader}
+                    onChange={(e) => setCustomAuthHeader(e.target.value)}
+                    placeholder="自定义Header名称"
+                    className="bg-input text-sm font-mono"
+                    disabled={!isIdle}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Header值</Label>
+                  <Input
+                    value={customAuthValue}
+                    onChange={(e) => setCustomAuthValue(e.target.value)}
+                    placeholder="自定义Header值"
+                    className="bg-input text-sm font-mono"
+                    disabled={!isIdle}
+                    type="password"
+                  />
+                </div>
+              </div>
+            )}
+
+            {authType === 'none' && (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border text-center">
+                <Shield className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  未配置认证，请求将不包含认证信息
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="advanced" className="space-y-4 mt-4">
+            {/* Proxy Mode Toggle */}
+            <div className="space-y-2 p-3 rounded-lg bg-muted/50 border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Globe className="w-3 h-3" />
+                  使用代理模式
+                </Label>
+                <Switch
+                  checked={config.useProxy}
+                  onCheckedChange={(checked) => setConfig(prev => ({ ...prev, useProxy: checked }))}
+                  disabled={!isIdle}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {config.useProxy 
+                  ? '通过后端代理发送请求，可绕过CORS限制' 
+                  : '直接从浏览器发送请求，可能受CORS限制'}
+              </p>
+            </div>
+
+            {/* Timeout Configuration */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Timer className="w-3 h-3" />
+                  请求超时 (毫秒)
+                </Label>
+                <Input
+                  type="number"
+                  value={config.timeout}
+                  onChange={(e) => setConfig(prev => ({ ...prev, timeout: Math.max(1000, parseInt(e.target.value) || 30000) }))}
+                  min={1000}
+                  max={300000}
+                  className="w-24 h-7 bg-input text-sm font-mono text-right"
+                  disabled={!isIdle}
+                />
+              </div>
+              <Slider
+                value={[config.timeout]}
+                onValueChange={([value]) => setConfig(prev => ({ ...prev, timeout: value }))}
+                min={1000}
+                max={120000}
+                step={1000}
+                disabled={!isIdle}
+                className="py-2"
+              />
+              <p className="text-xs text-muted-foreground">
+                单个请求的最大等待时间: {(config.timeout / 1000).toFixed(1)}秒
+              </p>
+            </div>
+
             {/* Headers */}
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">请求头 (JSON)</Label>
+              <Label className="text-xs text-muted-foreground">额外请求头 (JSON)</Label>
               <Textarea
                 value={headersText}
                 onChange={(e) => setHeadersText(e.target.value)}
@@ -466,6 +758,9 @@ export function ConfigPanel({
                 className="bg-input text-xs font-mono min-h-[100px]"
                 disabled={!isIdle}
               />
+              <p className="text-xs text-muted-foreground">
+                认证Header会自动添加，这里可配置其他请求头
+              </p>
             </div>
 
             {/* Body */}
