@@ -791,6 +791,36 @@ export function ConfigPanel({
                     />
                   </div>
                   
+                  {/* Target QPS (editable in ramp-up mode) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">目标QPS</Label>
+                      <Input
+                        type="number"
+                        value={config.qps}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          qps: Math.max(1, parseInt(e.target.value) || 1)
+                        }))}
+                        min={1}
+                        className="w-20 h-7 bg-input text-sm font-mono text-right"
+                        disabled={!isIdle}
+                      />
+                    </div>
+                    <Slider
+                      value={[config.qps]}
+                      onValueChange={([value]) => setConfig(prev => ({
+                        ...prev,
+                        qps: value
+                      }))}
+                      min={1}
+                      max={Math.max(5000, qpsLimit * 2)}
+                      step={10}
+                      disabled={!isIdle}
+                      className="py-2"
+                    />
+                  </div>
+                  
                   {/* Ramp-up Duration */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
