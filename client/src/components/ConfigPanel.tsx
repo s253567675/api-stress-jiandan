@@ -42,6 +42,7 @@ const defaultConfig: TestConfig = {
   qps: 100,
   duration: 30,
   totalRequests: 1000,
+  useProxy: true, // Use backend proxy to bypass CORS
 };
 
 // URL validation function

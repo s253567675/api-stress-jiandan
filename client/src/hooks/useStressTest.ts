@@ -1,9 +1,11 @@
 /*
  * Stress Test Engine Hook
  * Handles concurrent requests, QPS control, and real-time metrics collection
+ * Uses backend proxy to bypass CORS restrictions
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { trpc } from '@/lib/trpc';
 
 export interface TestConfig {
   url: string;
@@ -14,6 +16,7 @@ export interface TestConfig {
   qps: number;
   duration: number; // seconds, 0 means use totalRequests
   totalRequests: number;
+  useProxy: boolean; // Whether to use backend proxy
 }
 
 export interface RequestResult {
@@ -96,6 +99,10 @@ export function useStressTest() {
   const qpsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const configRef = useRef<TestConfig | null>(null);
   const isPausedRef = useRef<boolean>(false);
+  const isAbortedRef = useRef<boolean>(false);
+
+  // Get tRPC mutation for proxy requests
+  const proxyMutation = trpc.proxy.request.useMutation();
 
   const addLog = useCallback((result: RequestResult) => {
     setLogs(prev => {
@@ -174,7 +181,8 @@ export function useStressTest() {
     });
   }, []);
 
-  const makeRequest = useCallback(async (config: TestConfig, signal: AbortSignal): Promise<RequestResult> => {
+  // Direct fetch request (may fail due to CORS)
+  const makeDirectRequest = useCallback(async (config: TestConfig, signal: AbortSignal): Promise<RequestResult> => {
     const id = ++requestIdRef.current;
     const startTime = performance.now();
     
@@ -242,6 +250,77 @@ export function useStressTest() {
     }
   }, []);
 
+  // Proxy request through backend (bypasses CORS)
+  const makeProxyRequest = useCallback(async (config: TestConfig): Promise<RequestResult> => {
+    const id = ++requestIdRef.current;
+    const startTime = performance.now();
+    
+    activeConnectionsRef.current++;
+    
+    try {
+      const result = await proxyMutation.mutateAsync({
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        body: config.method !== 'GET' ? config.body : undefined,
+      });
+
+      const endTime = performance.now();
+      // Use server-side duration if available, otherwise use client-side
+      const duration = result.duration || (endTime - startTime);
+      
+      activeConnectionsRef.current--;
+      lastSecondRequestsRef.current.push(Date.now());
+
+      return {
+        id,
+        timestamp: Date.now(),
+        duration,
+        status: result.status,
+        success: result.success,
+        size: result.body ? new Blob([result.body]).size : 0,
+        error: result.error,
+      };
+    } catch (error) {
+      const endTime = performance.now();
+      activeConnectionsRef.current--;
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      lastSecondRequestsRef.current.push(Date.now());
+
+      return {
+        id,
+        timestamp: Date.now(),
+        duration: endTime - startTime,
+        status: 0,
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }, [proxyMutation]);
+
+  const makeRequest = useCallback(async (config: TestConfig, signal: AbortSignal): Promise<RequestResult> => {
+    // Check if aborted before making request
+    if (isAbortedRef.current || signal.aborted) {
+      return {
+        id: ++requestIdRef.current,
+        timestamp: Date.now(),
+        duration: 0,
+        status: 0,
+        success: false,
+        error: 'Aborted',
+      };
+    }
+
+    // Use proxy by default to bypass CORS
+    if (config.useProxy) {
+      return makeProxyRequest(config);
+    } else {
+      return makeDirectRequest(config, signal);
+    }
+  }, [makeProxyRequest, makeDirectRequest]);
+
   const runTest = useCallback(async (config: TestConfig) => {
     // Reset state
     setStatus('running');
@@ -255,6 +334,7 @@ export function useStressTest() {
     startTimeRef.current = Date.now();
     configRef.current = config;
     isPausedRef.current = false;
+    isAbortedRef.current = false;
 
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;
@@ -273,7 +353,7 @@ export function useStressTest() {
     intervalRef.current = setInterval(updateMetrics, 500);
 
     const sendRequest = async () => {
-      if (signal.aborted || isPausedRef.current) return;
+      if (signal.aborted || isPausedRef.current || isAbortedRef.current) return;
       
       // Check if we should stop based on duration or total requests
       if (config.duration > 0) {
@@ -286,7 +366,7 @@ export function useStressTest() {
       // Respect concurrency limit
       while (activeConnectionsRef.current >= config.concurrency) {
         await new Promise(resolve => setTimeout(resolve, 10));
-        if (signal.aborted) return;
+        if (signal.aborted || isAbortedRef.current) return;
       }
 
       requestsSent++;
@@ -308,14 +388,14 @@ export function useStressTest() {
 
     // QPS-controlled request sending
     qpsIntervalRef.current = setInterval(() => {
-      if (!signal.aborted && !isPausedRef.current) {
+      if (!signal.aborted && !isPausedRef.current && !isAbortedRef.current) {
         sendRequest();
       }
     }, intervalMs);
 
     // Wait for completion
     const checkCompletion = async () => {
-      while (!signal.aborted) {
+      while (!signal.aborted && !isAbortedRef.current) {
         await new Promise(resolve => setTimeout(resolve, 100));
         
         if (config.duration > 0) {
@@ -344,16 +424,19 @@ export function useStressTest() {
     // Final metrics update
     updateMetrics();
 
-    if (!signal.aborted) {
+    if (!signal.aborted && !isAbortedRef.current) {
       setStatus('completed');
     }
   }, [makeRequest, updateMetrics, addLog]);
 
   const startTest = useCallback((config: TestConfig) => {
-    runTest(config);
+    // Default to using proxy
+    const configWithProxy = { ...config, useProxy: config.useProxy ?? true };
+    runTest(configWithProxy);
   }, [runTest]);
 
   const stopTest = useCallback(() => {
+    isAbortedRef.current = true;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -390,6 +473,7 @@ export function useStressTest() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      isAbortedRef.current = true;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
