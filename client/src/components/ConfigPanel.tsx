@@ -29,34 +29,10 @@ interface ConfigPanelProps {
 }
 
 const defaultConfig: TestConfig = {
-  url: 'https://pqtdlrkpxk.execute-api.cn-north-1.amazonaws.com.cn/uat/v1/stations/day-power',
+  url: '',
   method: 'POST',
-  headers: {
-    'x-api-key': 'tRWNQ7sGlp76vPVLRn0tIask7bLwXW7yEMqMTTYi',
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    stationno: [
-      "105H2404000686", "105H2404000648", "105H2403000575", "105H2403000473",
-      "135H2305001780", "135H2304001164", "135H2310004198", "135H2309004101",
-      "207H2401001460", "207H2402001498", "207H2403001515", "207H2403001624",
-      "207H2403001711", "135H2305001401", "135H2305001680", "207H2406002211",
-      "207H2406002243", "207H2406002273", "207H2407002330", "293H2310000768",
-      "293H2310000802", "293H2310000854", "311H2310000482", "105H2312000292",
-      "113H2211000166", "113H2210000121", "113H2210000075", "113H2209000040",
-      "105H2406001004", "105H2406000934", "105H2406000916", "105H2405000837",
-      "105H2405000795"
-    ],
-    dateRange: [
-      "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05",
-      "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10",
-      "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15",
-      "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20",
-      "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25",
-      "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30",
-      "2024-06-12"
-    ]
-  }, null, 2),
+  headers: {},
+  body: '',
   concurrency: 50,
   qps: 100,
   duration: 30,
@@ -76,7 +52,7 @@ export function ConfigPanel({
   onQpsLimitChange,
 }: ConfigPanelProps) {
   const [config, setConfig] = useState<TestConfig>(defaultConfig);
-  const [headersText, setHeadersText] = useState(JSON.stringify(defaultConfig.headers, null, 2));
+  const [headersText, setHeadersText] = useState('');
   const [useDuration, setUseDuration] = useState(true);
 
   useEffect(() => {
