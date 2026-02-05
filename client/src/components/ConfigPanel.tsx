@@ -600,7 +600,7 @@ export function ConfigPanel({
                   placeholder="输入您的Bearer Token"
                   className="bg-input text-sm font-mono"
                   disabled={!isIdle}
-                  type="password"
+                  type="text"
                 />
                 <p className="text-xs text-muted-foreground">
                   将自动添加 Authorization: Bearer {'<token>'} 请求头
@@ -628,7 +628,7 @@ export function ConfigPanel({
                     placeholder="密码"
                     className="bg-input text-sm"
                     disabled={!isIdle}
-                    type="password"
+                    type="text"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -657,7 +657,7 @@ export function ConfigPanel({
                     placeholder="输入您的API Key"
                     className="bg-input text-sm font-mono"
                     disabled={!isIdle}
-                    type="password"
+                    type="text"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -686,7 +686,7 @@ export function ConfigPanel({
                     placeholder="自定义Header值"
                     className="bg-input text-sm font-mono"
                     disabled={!isIdle}
-                    type="password"
+                    type="text"
                   />
                 </div>
               </div>
