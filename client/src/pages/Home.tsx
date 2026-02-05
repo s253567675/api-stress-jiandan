@@ -14,6 +14,8 @@ import { QpsChart, LatencyChart, ErrorRateChart, StatusCodeChart, LatencyDistrib
 import { LogPanel } from '@/components/LogPanel';
 import { StatusIndicator } from '@/components/StatusIndicator';
 import { ResponseViewer } from '@/components/ResponseViewer';
+import { AIAnalysis } from '@/components/AIAnalysis';
+import { ReportExport } from '@/components/ReportExport';
 import { Input } from '@/components/ui/input';
 import { 
   Activity, 
@@ -42,6 +44,9 @@ export default function Home() {
   // Editable limits
   const [concurrencyLimit, setConcurrencyLimit] = useState(100);
   const [qpsLimit, setQpsLimit] = useState(1000);
+  
+  // AI Analysis result for report export
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
 
   const isIdle = status === 'idle' || status === 'completed' || status === 'error';
 
@@ -75,6 +80,13 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm">
+            {/* Report Export Button */}
+            <ReportExport 
+              metrics={metrics} 
+              logs={logs} 
+              timeSeries={timeSeries}
+              aiAnalysis={aiAnalysisResult}
+            />
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>并发限制:</span>
               <Input
@@ -183,6 +195,12 @@ export default function Home() {
 
           {/* Response Data Visualization */}
           <ResponseViewer logs={logs} metrics={metrics} />
+
+          {/* AI Analysis */}
+          <AIAnalysis 
+            metrics={metrics} 
+            logs={logs}
+          />
 
           {/* Log Panel */}
           <LogPanel logs={logs} />
