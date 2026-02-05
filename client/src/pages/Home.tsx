@@ -236,11 +236,38 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Status Codes Summary */}
-        <div className="rounded-lg border border-border bg-card/50 p-4">
-          <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-            状态码统计
+        {/* Business Code Summary - 业务状态码统计 */}
+        <div className="rounded-lg border border-primary/50 bg-primary/10 p-4">
+          <h3 className="text-xs text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary"></span>
+            业务状态码 (code)
           </h3>
+          <p className="text-xs text-muted-foreground mb-2">成功判断依据</p>
+          <div className="space-y-2">
+            {Object.entries(metrics.businessCodes).length > 0 ? (
+              Object.entries(metrics.businessCodes)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([code, count]) => (
+                  <div key={code} className="flex justify-between items-center">
+                    <span className={`text-sm font-mono ${code === '0' ? 'text-chart-3' : 'text-destructive'}`}>
+                      {code}
+                    </span>
+                    <span className="font-mono text-sm text-foreground">{count.toLocaleString()}</span>
+                  </div>
+                ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-2">暂无数据</p>
+            )}
+          </div>
+        </div>
+
+        {/* HTTP Status Codes Summary - HTTP状态码统计 */}
+        <div className="rounded-lg border border-border bg-card/50 p-4">
+          <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
+            HTTP状态码
+          </h3>
+          <p className="text-xs text-muted-foreground mb-2">协议层响应</p>
           <div className="space-y-2">
             {Object.entries(metrics.statusCodes).length > 0 ? (
               Object.entries(metrics.statusCodes)

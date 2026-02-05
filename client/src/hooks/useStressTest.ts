@@ -37,6 +37,7 @@ export interface RequestResult {
   success: boolean;
   error?: string;
   size?: number;
+  businessCode?: string; // 业务状态码（从响应体中提取）
 }
 
 export interface TestMetrics {
@@ -55,7 +56,8 @@ export interface TestMetrics {
   throughput: number;
   errorRate: number;
   elapsedTime: number;
-  statusCodes: Record<number, number>;
+  statusCodes: Record<number, number>; // HTTP状态码统计
+  businessCodes: Record<string, number>; // 业务状态码统计
 }
 
 export interface TimeSeriesPoint {
@@ -85,6 +87,7 @@ const initialMetrics: TestMetrics = {
   errorRate: 0,
   elapsedTime: 0,
   statusCodes: {},
+  businessCodes: {},
 };
 
 function calculatePercentile(sortedLatencies: number[], percentile: number): number {
@@ -139,8 +142,13 @@ export function useStressTest() {
     
     // Calculate status code distribution
     const statusCodes: Record<number, number> = {};
+    const businessCodes: Record<string, number> = {};
     results.forEach(r => {
       statusCodes[r.status] = (statusCodes[r.status] || 0) + 1;
+      // 统计业务状态码
+      if (r.businessCode !== undefined) {
+        businessCodes[r.businessCode] = (businessCodes[r.businessCode] || 0) + 1;
+      }
     });
 
     // Calculate current QPS (requests in last second)
@@ -169,6 +177,7 @@ export function useStressTest() {
       errorRate: results.length > 0 ? (failResults.length / results.length) * 100 : 0,
       elapsedTime: Math.round(elapsed),
       statusCodes,
+      businessCodes,
     };
 
     setMetrics(newMetrics);
@@ -272,16 +281,16 @@ export function useStressTest() {
     return current;
   };
 
-  // Check if response matches success condition
-  const checkSuccessCondition = (responseBody: string | null, condition: SuccessCondition | undefined, httpSuccess: boolean): boolean => {
+  // Check if response matches success condition and extract business code
+  const checkSuccessCondition = (responseBody: string | null, condition: SuccessCondition | undefined, httpSuccess: boolean): { success: boolean; businessCode?: string } => {
     // If no custom condition, use HTTP status code
     if (!condition || !condition.enabled) {
-      return httpSuccess;
+      return { success: httpSuccess };
     }
 
     // Try to parse response as JSON
     if (!responseBody) {
-      return condition.operator === 'notExists';
+      return { success: condition.operator === 'notExists' };
     }
 
     let jsonBody: unknown;
@@ -289,30 +298,40 @@ export function useStressTest() {
       jsonBody = JSON.parse(responseBody);
     } catch {
       // If not valid JSON, can only check exists/notExists
-      if (condition.operator === 'notExists') return true;
-      if (condition.operator === 'exists') return false;
-      return false;
+      if (condition.operator === 'notExists') return { success: true };
+      if (condition.operator === 'exists') return { success: false };
+      return { success: false };
     }
 
     const fieldValue = getNestedValue(jsonBody, condition.field);
     const stringValue = fieldValue !== undefined && fieldValue !== null ? String(fieldValue) : undefined;
+    const businessCode = stringValue; // 提取业务状态码
 
+    let success = false;
     switch (condition.operator) {
       case 'equals':
-        return stringValue === condition.value;
+        success = stringValue === condition.value;
+        break;
       case 'notEquals':
-        return stringValue !== condition.value;
+        success = stringValue !== condition.value;
+        break;
       case 'contains':
-        return stringValue !== undefined && stringValue.includes(condition.value);
+        success = stringValue !== undefined && stringValue.includes(condition.value);
+        break;
       case 'notContains':
-        return stringValue === undefined || !stringValue.includes(condition.value);
+        success = stringValue === undefined || !stringValue.includes(condition.value);
+        break;
       case 'exists':
-        return fieldValue !== undefined;
+        success = fieldValue !== undefined;
+        break;
       case 'notExists':
-        return fieldValue === undefined;
+        success = fieldValue === undefined;
+        break;
       default:
-        return httpSuccess;
+        success = httpSuccess;
     }
+
+    return { success, businessCode };
   };
 
   // Proxy request through backend (bypasses CORS)
@@ -339,7 +358,7 @@ export function useStressTest() {
       lastSecondRequestsRef.current.push(Date.now());
 
       // Check success condition based on response body
-      const isSuccess = checkSuccessCondition(result.body, config.successCondition, result.success);
+      const { success: isSuccess, businessCode } = checkSuccessCondition(result.body, config.successCondition, result.success);
 
       return {
         id,
@@ -349,6 +368,7 @@ export function useStressTest() {
         success: isSuccess,
         size: result.body ? new Blob([result.body]).size : 0,
         error: result.error,
+        businessCode,
       };
     } catch (error) {
       const endTime = performance.now();
