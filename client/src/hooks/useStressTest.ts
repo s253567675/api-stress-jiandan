@@ -305,7 +305,8 @@ export function useStressTest() {
 
     const fieldValue = getNestedValue(jsonBody, condition.field);
     const stringValue = fieldValue !== undefined && fieldValue !== null ? String(fieldValue) : undefined;
-    const businessCode = stringValue; // 提取业务状态码
+    // 提取业务状态码，如果字段不存在则记录为 "N/A"
+    const businessCode = stringValue !== undefined ? stringValue : 'N/A';
 
     let success = false;
     switch (condition.operator) {
