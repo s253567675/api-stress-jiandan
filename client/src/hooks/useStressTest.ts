@@ -7,6 +7,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 
+// Success condition configuration for response validation
+export interface SuccessCondition {
+  enabled: boolean;
+  field: string; // JSON path to check, e.g., "code" or "data.status"
+  operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'exists' | 'notExists';
+  value: string; // Expected value (string representation)
+}
+
 export interface TestConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -18,6 +26,7 @@ export interface TestConfig {
   totalRequests: number;
   useProxy: boolean; // Whether to use backend proxy
   timeout: number; // Request timeout in milliseconds
+  successCondition?: SuccessCondition; // Custom success condition based on response body
 }
 
 export interface RequestResult {
@@ -251,6 +260,61 @@ export function useStressTest() {
     }
   }, []);
 
+  // Helper function to get nested field value from JSON object
+  const getNestedValue = (obj: unknown, path: string): unknown => {
+    const keys = path.split('.');
+    let current: unknown = obj;
+    for (const key of keys) {
+      if (current === null || current === undefined) return undefined;
+      if (typeof current !== 'object') return undefined;
+      current = (current as Record<string, unknown>)[key];
+    }
+    return current;
+  };
+
+  // Check if response matches success condition
+  const checkSuccessCondition = (responseBody: string | null, condition: SuccessCondition | undefined, httpSuccess: boolean): boolean => {
+    // If no custom condition, use HTTP status code
+    if (!condition || !condition.enabled) {
+      return httpSuccess;
+    }
+
+    // Try to parse response as JSON
+    if (!responseBody) {
+      return condition.operator === 'notExists';
+    }
+
+    let jsonBody: unknown;
+    try {
+      jsonBody = JSON.parse(responseBody);
+    } catch {
+      // If not valid JSON, can only check exists/notExists
+      if (condition.operator === 'notExists') return true;
+      if (condition.operator === 'exists') return false;
+      return false;
+    }
+
+    const fieldValue = getNestedValue(jsonBody, condition.field);
+    const stringValue = fieldValue !== undefined && fieldValue !== null ? String(fieldValue) : undefined;
+
+    switch (condition.operator) {
+      case 'equals':
+        return stringValue === condition.value;
+      case 'notEquals':
+        return stringValue !== condition.value;
+      case 'contains':
+        return stringValue !== undefined && stringValue.includes(condition.value);
+      case 'notContains':
+        return stringValue === undefined || !stringValue.includes(condition.value);
+      case 'exists':
+        return fieldValue !== undefined;
+      case 'notExists':
+        return fieldValue === undefined;
+      default:
+        return httpSuccess;
+    }
+  };
+
   // Proxy request through backend (bypasses CORS)
   const makeProxyRequest = useCallback(async (config: TestConfig): Promise<RequestResult> => {
     const id = ++requestIdRef.current;
@@ -274,12 +338,15 @@ export function useStressTest() {
       activeConnectionsRef.current--;
       lastSecondRequestsRef.current.push(Date.now());
 
+      // Check success condition based on response body
+      const isSuccess = checkSuccessCondition(result.body, config.successCondition, result.success);
+
       return {
         id,
         timestamp: Date.now(),
         duration,
         status: result.status,
-        success: result.success,
+        success: isSuccess,
         size: result.body ? new Blob([result.body]).size : 0,
         error: result.error,
       };

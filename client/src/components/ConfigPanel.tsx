@@ -18,7 +18,7 @@ import {
   Play, Square, Pause, RotateCcw, Settings, Zap, Clock, Target, 
   AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe
 } from 'lucide-react';
-import type { TestConfig, TestStatus } from '@/hooks/useStressTest';
+import type { TestConfig, TestStatus, SuccessCondition } from '@/hooks/useStressTest';
 
 interface ConfigPanelProps {
   onStart: (config: TestConfig) => void;
@@ -44,6 +44,12 @@ const defaultConfig: TestConfig = {
   totalRequests: 1000,
   useProxy: true, // Use backend proxy to bypass CORS
   timeout: 30000, // 30 seconds default timeout
+  successCondition: {
+    enabled: false,
+    field: 'code',
+    operator: 'equals',
+    value: '0',
+  },
 };
 
 // URL validation function
@@ -746,6 +752,93 @@ export function ConfigPanel({
               <p className="text-xs text-muted-foreground">
                 单个请求的最大等待时间: {(config.timeout / 1000).toFixed(1)}秒
               </p>
+            </div>
+
+            {/* Success Condition */}
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  自定义成功条件
+                </Label>
+                <Switch
+                  checked={config.successCondition?.enabled || false}
+                  onCheckedChange={(checked) => setConfig(prev => ({
+                    ...prev,
+                    successCondition: { ...prev.successCondition!, enabled: checked }
+                  }))}
+                  disabled={!isIdle}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {config.successCondition?.enabled
+                  ? '根据响应体字段判断请求是否成功'
+                  : '使用HTTP状态码(200-299)判断成功'}
+              </p>
+              
+              {config.successCondition?.enabled && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">字段路径</Label>
+                    <Input
+                      value={config.successCondition?.field || ''}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        successCondition: { ...prev.successCondition!, field: e.target.value }
+                      }))}
+                      placeholder="code 或 data.status"
+                      className="bg-input text-sm font-mono"
+                      disabled={!isIdle}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      支持嵌套路径，如: data.result.code
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">匹配条件</Label>
+                    <Select
+                      value={config.successCondition?.operator || 'equals'}
+                      onValueChange={(value) => setConfig(prev => ({
+                        ...prev,
+                        successCondition: { ...prev.successCondition!, operator: value as SuccessCondition['operator'] }
+                      }))}
+                      disabled={!isIdle}
+                    >
+                      <SelectTrigger className="bg-input">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="equals">等于</SelectItem>
+                        <SelectItem value="notEquals">不等于</SelectItem>
+                        <SelectItem value="contains">包含</SelectItem>
+                        <SelectItem value="notContains">不包含</SelectItem>
+                        <SelectItem value="exists">字段存在</SelectItem>
+                        <SelectItem value="notExists">字段不存在</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {config.successCondition?.operator !== 'exists' && config.successCondition?.operator !== 'notExists' && (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">期望值</Label>
+                      <Input
+                        value={config.successCondition?.value || ''}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          successCondition: { ...prev.successCondition!, value: e.target.value }
+                        }))}
+                        placeholder="0"
+                        className="bg-input text-sm font-mono"
+                        disabled={!isIdle}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        例如: code=0 表示成功
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Headers */}
