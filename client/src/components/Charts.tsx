@@ -1,6 +1,7 @@
 /*
  * Charts Component
  * Mission Control Style - Real-time monitoring charts
+ * Enhanced axis visibility for better readability
  */
 
 import {
@@ -21,41 +22,62 @@ import {
 } from 'recharts';
 import type { TimeSeriesPoint, TestMetrics } from '@/hooks/useStressTest';
 
+// Common axis styles for better visibility
+const axisTickStyle = { 
+  fontSize: 12, 
+  fill: '#e2e8f0', // Light gray for better contrast
+  fontWeight: 500,
+};
+
+const axisLineStyle = {
+  stroke: '#64748b', // Slate-500 for axis lines
+  strokeWidth: 1,
+};
+
+const gridStyle = {
+  stroke: '#334155', // Slate-700 for grid
+  strokeDasharray: '3 3',
+};
+
 interface QpsChartProps {
   data: TimeSeriesPoint[];
 }
 
 export function QpsChart({ data }: QpsChartProps) {
   return (
-    <div className="data-card h-[200px]">
+    <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
         实时 QPS
       </h3>
       <ResponsiveContainer width="100%" height="85%">
-        <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <defs>
             <linearGradient id="qpsGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="oklch(0.75 0.15 195)" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="oklch(0.75 0.15 195)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 250)" />
+          <CartesianGrid {...gridStyle} />
           <XAxis
             dataKey="time"
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
+            tick={axisTickStyle}
             tickFormatter={(v) => `${v}s`}
-            stroke="oklch(0.28 0.04 250)"
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-            stroke="oklch(0.28 0.04 250)"
+            tick={axisTickStyle}
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
+            width={50}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'oklch(0.18 0.03 250)',
-              border: '1px solid oklch(0.28 0.04 250)',
-              borderRadius: '6px',
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
               fontSize: '12px',
+              color: '#e2e8f0',
             }}
             labelFormatter={(v) => `时间: ${v}s`}
             formatter={(value: number) => [`${value} req/s`, 'QPS']}
@@ -63,7 +85,7 @@ export function QpsChart({ data }: QpsChartProps) {
           <Area
             type="monotone"
             dataKey="qps"
-            stroke="oklch(0.75 0.15 195)"
+            stroke="#00d4ff"
             strokeWidth={2}
             fill="url(#qpsGradient)"
           />
@@ -79,29 +101,33 @@ interface LatencyChartProps {
 
 export function LatencyChart({ data }: LatencyChartProps) {
   return (
-    <div className="data-card h-[200px]">
+    <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
         响应延迟 (ms)
       </h3>
       <ResponsiveContainer width="100%" height="85%">
-        <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 250)" />
+        <LineChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+          <CartesianGrid {...gridStyle} />
           <XAxis
             dataKey="time"
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
+            tick={axisTickStyle}
             tickFormatter={(v) => `${v}s`}
-            stroke="oklch(0.28 0.04 250)"
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-            stroke="oklch(0.28 0.04 250)"
+            tick={axisTickStyle}
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
+            width={50}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'oklch(0.18 0.03 250)',
-              border: '1px solid oklch(0.28 0.04 250)',
-              borderRadius: '6px',
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
               fontSize: '12px',
+              color: '#e2e8f0',
             }}
             labelFormatter={(v) => `时间: ${v}s`}
             formatter={(value: number) => [`${value} ms`, '延迟']}
@@ -109,7 +135,7 @@ export function LatencyChart({ data }: LatencyChartProps) {
           <Line
             type="monotone"
             dataKey="latency"
-            stroke="oklch(0.8 0.18 75)"
+            stroke="#f59e0b"
             strokeWidth={2}
             dot={false}
           />
@@ -125,36 +151,40 @@ interface ErrorRateChartProps {
 
 export function ErrorRateChart({ data }: ErrorRateChartProps) {
   return (
-    <div className="data-card h-[200px]">
+    <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
         错误率 (%)
       </h3>
       <ResponsiveContainer width="100%" height="85%">
-        <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <defs>
             <linearGradient id="errorGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="oklch(0.6 0.22 25)" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="oklch(0.6 0.22 25)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 250)" />
+          <CartesianGrid {...gridStyle} />
           <XAxis
             dataKey="time"
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
+            tick={axisTickStyle}
             tickFormatter={(v) => `${v}s`}
-            stroke="oklch(0.28 0.04 250)"
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-            stroke="oklch(0.28 0.04 250)"
+            tick={axisTickStyle}
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
             domain={[0, 100]}
+            width={50}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'oklch(0.18 0.03 250)',
-              border: '1px solid oklch(0.28 0.04 250)',
-              borderRadius: '6px',
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
               fontSize: '12px',
+              color: '#e2e8f0',
             }}
             labelFormatter={(v) => `时间: ${v}s`}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '错误率']}
@@ -162,7 +192,7 @@ export function ErrorRateChart({ data }: ErrorRateChartProps) {
           <Area
             type="monotone"
             dataKey="errorRate"
-            stroke="oklch(0.6 0.22 25)"
+            stroke="#ef4444"
             strokeWidth={2}
             fill="url(#errorGradient)"
           />
@@ -184,29 +214,33 @@ export function StatusCodeChart({ statusCodes }: StatusCodeChartProps) {
   }));
 
   return (
-    <div className="data-card h-[200px]">
+    <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
         状态码分布
       </h3>
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height="85%">
-          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 250)" />
+          <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+            <CartesianGrid {...gridStyle} />
             <XAxis
               dataKey="code"
-              tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-              stroke="oklch(0.28 0.04 250)"
+              tick={axisTickStyle}
+              axisLine={axisLineStyle}
+              tickLine={{ stroke: '#64748b' }}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-              stroke="oklch(0.28 0.04 250)"
+              tick={axisTickStyle}
+              axisLine={axisLineStyle}
+              tickLine={{ stroke: '#64748b' }}
+              width={50}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'oklch(0.18 0.03 250)',
-                border: '1px solid oklch(0.28 0.04 250)',
-                borderRadius: '6px',
+                backgroundColor: '#1e293b',
+                border: '1px solid #334155',
+                borderRadius: '8px',
                 fontSize: '12px',
+                color: '#e2e8f0',
               }}
               formatter={(value: number) => [`${value}`, '请求数']}
             />
@@ -227,11 +261,11 @@ export function StatusCodeChart({ statusCodes }: StatusCodeChartProps) {
 }
 
 function getStatusColor(code: number): string {
-  if (code >= 200 && code < 300) return 'oklch(0.75 0.2 145)'; // Success - green
-  if (code >= 300 && code < 400) return 'oklch(0.75 0.15 195)'; // Redirect - cyan
-  if (code >= 400 && code < 500) return 'oklch(0.8 0.18 75)'; // Client error - amber
-  if (code >= 500) return 'oklch(0.6 0.22 25)'; // Server error - red
-  return 'oklch(0.65 0.03 250)'; // Unknown - gray
+  if (code >= 200 && code < 300) return '#22c55e'; // Success - green
+  if (code >= 300 && code < 400) return '#00d4ff'; // Redirect - cyan
+  if (code >= 400 && code < 500) return '#f59e0b'; // Client error - amber
+  if (code >= 500) return '#ef4444'; // Server error - red
+  return '#64748b'; // Unknown - gray
 }
 
 interface LatencyDistributionProps {
@@ -240,37 +274,41 @@ interface LatencyDistributionProps {
 
 export function LatencyDistribution({ metrics }: LatencyDistributionProps) {
   const data = [
-    { name: 'P50', value: metrics.p50Latency, fill: 'oklch(0.75 0.15 195)' },
-    { name: 'P90', value: metrics.p90Latency, fill: 'oklch(0.75 0.2 145)' },
-    { name: 'P95', value: metrics.p95Latency, fill: 'oklch(0.8 0.18 75)' },
-    { name: 'P99', value: metrics.p99Latency, fill: 'oklch(0.6 0.22 25)' },
+    { name: 'P50', value: metrics.p50Latency, fill: '#00d4ff' },
+    { name: 'P90', value: metrics.p90Latency, fill: '#22c55e' },
+    { name: 'P95', value: metrics.p95Latency, fill: '#f59e0b' },
+    { name: 'P99', value: metrics.p99Latency, fill: '#ef4444' },
   ];
 
   return (
-    <div className="data-card h-[200px]">
+    <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
         延迟分布 (ms)
       </h3>
       <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.04 250)" />
+        <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, left: 30, bottom: 5 }}>
+          <CartesianGrid {...gridStyle} />
           <XAxis
             type="number"
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-            stroke="oklch(0.28 0.04 250)"
+            tick={axisTickStyle}
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fontSize: 10, fill: 'oklch(0.65 0.03 250)' }}
-            stroke="oklch(0.28 0.04 250)"
+            tick={axisTickStyle}
+            axisLine={axisLineStyle}
+            tickLine={{ stroke: '#64748b' }}
+            width={40}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'oklch(0.18 0.03 250)',
-              border: '1px solid oklch(0.28 0.04 250)',
-              borderRadius: '6px',
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '8px',
               fontSize: '12px',
+              color: '#e2e8f0',
             }}
             formatter={(value: number) => [`${value} ms`, '延迟']}
           />
@@ -293,14 +331,14 @@ interface SuccessRatePieProps {
 export function SuccessRatePie({ successCount, failCount }: SuccessRatePieProps) {
   const total = successCount + failCount;
   const data = [
-    { name: '成功', value: successCount, fill: 'oklch(0.75 0.2 145)' },
-    { name: '失败', value: failCount, fill: 'oklch(0.6 0.22 25)' },
+    { name: '成功', value: successCount, fill: '#22c55e' },
+    { name: '失败', value: failCount, fill: '#ef4444' },
   ];
 
   const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) : '0';
 
   return (
-    <div className="data-card h-[200px]">
+    <div className="rounded-lg border border-border bg-card/50 p-4 h-[220px]">
       <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
         成功率
       </h3>
@@ -326,16 +364,16 @@ export function SuccessRatePie({ successCount, failCount }: SuccessRatePieProps)
         </div>
         <div className="w-1/2 space-y-2">
           <div className="text-center">
-            <span className="text-3xl font-bold mono-number text-chart-3">{successRate}%</span>
+            <span className="text-3xl font-bold font-mono text-green-400">{successRate}%</span>
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-chart-3" />
-              <span className="text-muted-foreground">成功: {successCount.toLocaleString()}</span>
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              <span className="text-slate-300">成功: {successCount.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-destructive" />
-              <span className="text-muted-foreground">失败: {failCount.toLocaleString()}</span>
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-slate-300">失败: {failCount.toLocaleString()}</span>
             </div>
           </div>
         </div>

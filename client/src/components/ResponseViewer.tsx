@@ -415,21 +415,28 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                 <Clock className="w-3 h-3" />
                 响应时间散点图 (最近200个请求)
               </h4>
-              <ResponsiveContainer width="100%" height={250}>
-                <ScatterChart>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <ResponsiveContainer width="100%" height={280}>
+                <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
                   <XAxis 
                     type="number" 
                     dataKey="x" 
                     name="请求序号"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    tick={{ fill: '#ffffff', fontSize: 12, fontWeight: 500 }}
+                    axisLine={{ stroke: '#ffffff', strokeWidth: 1 }}
+                    tickLine={{ stroke: '#ffffff' }}
+                    label={{ value: '请求序号', position: 'bottom', fill: '#ffffff', fontSize: 12, offset: 0 }}
                   />
                   <YAxis 
                     type="number" 
                     dataKey="y" 
                     name="延迟"
                     unit="ms"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    tick={{ fill: '#ffffff', fontSize: 12, fontWeight: 500 }}
+                    axisLine={{ stroke: '#ffffff', strokeWidth: 1 }}
+                    tickLine={{ stroke: '#ffffff' }}
+                    label={{ value: '延迟 (ms)', angle: -90, position: 'insideLeft', fill: '#ffffff', fontSize: 12 }}
+                    width={60}
                   />
                   <ZAxis range={[30, 30]} />
                   <Tooltip 
