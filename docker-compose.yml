@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  api-stress-tester:
+    build: .
+    container_name: api-stress-tester
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
