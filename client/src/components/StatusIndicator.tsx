@@ -4,15 +4,26 @@
  */
 
 import { cn } from '@/lib/utils';
-import type { TestStatus, TestMetrics } from '@/hooks/useStressTest';
-import { Activity, CheckCircle2, AlertCircle, XCircle, Pause, Circle } from 'lucide-react';
+import type { TestStatus, TestMetrics, RampUpConfig } from '@/hooks/useStressTest';
+import { Activity, CheckCircle2, AlertCircle, XCircle, Pause, Circle, TrendingUp, Minus } from 'lucide-react';
 
 interface StatusIndicatorProps {
   status: TestStatus;
   metrics: TestMetrics;
+  rampUpConfig?: RampUpConfig;
+  elapsedTime?: number;
 }
 
-export function StatusIndicator({ status, metrics }: StatusIndicatorProps) {
+export function StatusIndicator({ status, metrics, rampUpConfig, elapsedTime = 0 }: StatusIndicatorProps) {
+  // Determine current phase for ramp-up mode
+  const isRampUpEnabled = rampUpConfig?.enabled;
+  const rampUpDuration = rampUpConfig?.duration || 10;
+  const isInRampUpPhase = isRampUpEnabled && status === 'running' && elapsedTime < rampUpDuration;
+  const isInStablePhase = isRampUpEnabled && status === 'running' && elapsedTime >= rampUpDuration;
+  const rampUpProgress = isRampUpEnabled && elapsedTime < rampUpDuration 
+    ? Math.min(100, (elapsedTime / rampUpDuration) * 100) 
+    : 100;
+
   const statusConfig = {
     idle: {
       label: '就绪',
@@ -126,6 +137,47 @@ export function StatusIndicator({ status, metrics }: StatusIndicatorProps) {
               style={{ width: `${progress}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Ramp-up Phase Indicator */}
+      {isRampUpEnabled && status === 'running' && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {isInRampUpPhase ? (
+                <>
+                  <TrendingUp className="w-4 h-4 text-chart-4 animate-pulse" />
+                  <span className="text-sm font-medium text-chart-4">递增阶段</span>
+                </>
+              ) : (
+                <>
+                  <Minus className="w-4 h-4 text-chart-3" />
+                  <span className="text-sm font-medium text-chart-3">稳定阶段</span>
+                </>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {isInRampUpPhase 
+                ? `${Math.round(rampUpProgress)}% (${Math.round(elapsedTime)}s / ${rampUpDuration}s)`
+                : `已达到目标QPS`
+              }
+            </span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all duration-300",
+                isInRampUpPhase ? "bg-chart-4" : "bg-chart-3"
+              )}
+              style={{ width: `${rampUpProgress}%` }}
+            />
+          </div>
+          {isInRampUpPhase && (
+            <p className="text-xs text-muted-foreground mt-1">
+              当前QPS: {metrics.currentQps} → 目标: {rampUpConfig?.startQps || 1} + ...
+            </p>
+          )}
         </div>
       )}
 

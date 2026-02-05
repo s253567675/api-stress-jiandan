@@ -1,6 +1,6 @@
 import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, testRecords, InsertTestRecord, TestRecord } from "../drizzle/schema";
+import { InsertUser, users, testRecords, InsertTestRecord, TestRecord, configTemplates, InsertConfigTemplate, ConfigTemplate } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -190,6 +190,111 @@ export async function updateTestRecordName(id: number, name: string): Promise<bo
     return true;
   } catch (error) {
     console.error("[Database] Failed to update test record:", error);
+    return false;
+  }
+}
+
+// Config Templates CRUD operations
+
+/**
+ * Create a new config template
+ */
+export async function createConfigTemplate(template: InsertConfigTemplate): Promise<number | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot create config template: database not available");
+    return null;
+  }
+
+  try {
+    const result = await db.insert(configTemplates).values(template);
+    return result[0].insertId;
+  } catch (error) {
+    console.error("[Database] Failed to create config template:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all config templates, ordered by update date (newest first)
+ */
+export async function getConfigTemplates(limit: number = 50): Promise<ConfigTemplate[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get config templates: database not available");
+    return [];
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(configTemplates)
+      .orderBy(desc(configTemplates.updatedAt))
+      .limit(limit);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get config templates:", error);
+    return [];
+  }
+}
+
+/**
+ * Get a single config template by ID
+ */
+export async function getConfigTemplateById(id: number): Promise<ConfigTemplate | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get config template: database not available");
+    return null;
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(configTemplates)
+      .where(eq(configTemplates.id, id))
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("[Database] Failed to get config template:", error);
+    return null;
+  }
+}
+
+/**
+ * Update a config template
+ */
+export async function updateConfigTemplate(id: number, data: { name?: string; description?: string; config?: unknown }): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update config template: database not available");
+    return false;
+  }
+
+  try {
+    await db.update(configTemplates).set(data).where(eq(configTemplates.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update config template:", error);
+    return false;
+  }
+}
+
+/**
+ * Delete a config template by ID
+ */
+export async function deleteConfigTemplate(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot delete config template: database not available");
+    return false;
+  }
+
+  try {
+    await db.delete(configTemplates).where(eq(configTemplates.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete config template:", error);
     return false;
   }
 }

@@ -19,6 +19,8 @@ import {
   AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe, TrendingUp
 } from 'lucide-react';
 import type { TestConfig, TestStatus, SuccessCondition, RampUpConfig } from '@/hooks/useStressTest';
+import { RampUpPreview } from './RampUpPreview';
+import { ConfigTemplates } from './ConfigTemplates';
 
 interface ConfigPanelProps {
   onStart: (config: TestConfig) => void;
@@ -338,8 +340,23 @@ export function ConfigPanel({
             <Settings className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-sidebar-foreground">测试配置</h2>
           </div>
-          {/* Import/Export buttons */}
+          {/* Import/Export/Templates buttons */}
           <div className="flex items-center gap-1">
+            <ConfigTemplates 
+              currentConfig={config} 
+              onLoadTemplate={(loadedConfig) => {
+                setConfig(loadedConfig);
+                // Update headers text
+                if (loadedConfig.headers && Object.keys(loadedConfig.headers).length > 0) {
+                  setHeadersText(
+                    Object.entries(loadedConfig.headers)
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join('\n')
+                  );
+                }
+              }}
+              disabled={!isIdle}
+            />
             <input
               ref={fileInputRef}
               type="file"
@@ -894,6 +911,12 @@ export function ConfigPanel({
                       </div>
                     </>
                   )}
+                  {/* Ramp-up Preview Chart */}
+                  <RampUpPreview 
+                    rampUp={config.rampUp!} 
+                    targetQps={config.qps} 
+                    testDuration={config.duration || 30}
+                  />
                 </div>
               )}
             </div>

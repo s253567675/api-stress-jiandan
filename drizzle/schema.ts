@@ -85,3 +85,23 @@ export const testRecords = mysqlTable("test_records", {
 
 export type TestRecord = typeof testRecords.$inferSelect;
 export type InsertTestRecord = typeof testRecords.$inferInsert;
+
+/**
+ * Configuration templates for saving and reusing test configurations
+ */
+export const configTemplates = mysqlTable("config_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Template name for easy identification */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Template description */
+  description: text("description"),
+  /** Full test configuration (JSON) */
+  config: json("config").notNull(),
+  /** User who created the template (optional) */
+  userId: int("userId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ConfigTemplate = typeof configTemplates.$inferSelect;
+export type InsertConfigTemplate = typeof configTemplates.$inferInsert;

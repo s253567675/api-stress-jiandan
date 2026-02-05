@@ -285,7 +285,12 @@ export default function Home() {
 
       {/* Right Panel - Status */}
       <div className="w-72 border-l border-border bg-sidebar p-4 space-y-4 overflow-y-auto">
-        <StatusIndicator status={status} metrics={metrics} />
+        <StatusIndicator 
+          status={status} 
+          metrics={metrics} 
+          rampUpConfig={currentConfig?.rampUp}
+          elapsedTime={metrics.elapsedTime}
+        />
 
         {/* Detailed Latency Stats */}
         <div className="rounded-lg border border-border bg-card/50 p-4">

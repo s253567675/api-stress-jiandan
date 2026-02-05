@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { createTestRecord, getTestRecords, getTestRecordById, deleteTestRecord, updateTestRecordName } from "./db";
+import { createTestRecord, getTestRecords, getTestRecordById, deleteTestRecord, updateTestRecordName, createConfigTemplate, getConfigTemplates, getConfigTemplateById, updateConfigTemplate, deleteConfigTemplate } from "./db";
 
 export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -153,6 +153,65 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const success = await updateTestRecordName(input.id, input.name);
+        return { success };
+      }),
+  }),
+
+  // Config Templates - Save and load test configurations
+  configTemplates: router({
+    // Create a new config template
+    create: publicProcedure
+      .input(z.object({
+        name: z.string().min(1).max(255),
+        description: z.string().optional(),
+        config: z.any(),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await createConfigTemplate(input);
+        return { success: !!id, id };
+      }),
+
+    // Get all config templates
+    list: publicProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(100).optional().default(50),
+      }).optional())
+      .query(async ({ input }) => {
+        const templates = await getConfigTemplates(input?.limit ?? 50);
+        return templates;
+      }),
+
+    // Get a single config template by ID
+    getById: publicProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const template = await getConfigTemplateById(input.id);
+        return template;
+      }),
+
+    // Update a config template
+    update: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).max(255).optional(),
+        description: z.string().optional(),
+        config: z.any().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        const success = await updateConfigTemplate(id, data);
+        return { success };
+      }),
+
+    // Delete a config template
+    delete: publicProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const success = await deleteConfigTemplate(input.id);
         return { success };
       }),
   }),
