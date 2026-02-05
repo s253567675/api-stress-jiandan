@@ -115,9 +115,9 @@ export function TestHistory({ onCompare }: TestHistoryProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <History className="w-4 h-4" />
-          历史记录
+        <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs">
+          <History className="w-3 h-3" />
+          历史
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">

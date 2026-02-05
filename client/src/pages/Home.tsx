@@ -122,61 +122,69 @@ export default function Home() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-14 border-b border-border px-6 flex items-center justify-between bg-card/50">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Gauge className="w-5 h-5 text-primary" />
+        <header className="border-b border-border px-4 py-2 bg-card/50">
+          <div className="flex items-center justify-between">
+            {/* Left: Title */}
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Gauge className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-base font-semibold">API 压力测试工具</h1>
+                <p className="text-xs text-muted-foreground">实时监控 · 性能分析</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold">API 压力测试工具</h1>
-              <p className="text-xs text-muted-foreground">实时监控 · 性能分析</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            {/* Save Record Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveRecord}
-              disabled={metrics.completedRequests === 0 || saveRecordMutation.isPending}
-              className="gap-2"
-            >
-              <Save className="w-4 h-4" />
-              保存记录
-            </Button>
             
-            {/* History Button */}
-            <TestHistory onCompare={handleCompare} />
-            
-            {/* Report Export Button */}
-            <ReportExport 
-              metrics={metrics} 
-              logs={logs} 
-              timeSeries={timeSeries}
-              aiAnalysis={aiAnalysisResult}
-            />
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span>并发限制:</span>
-              <Input
-                type="number"
-                value={concurrencyLimit}
-                onChange={(e) => setConcurrencyLimit(Math.max(1, parseInt(e.target.value) || 1))}
-                min={1}
-                className="w-20 h-7 bg-input text-sm font-mono text-primary text-center"
-                disabled={!isIdle}
+            {/* Right: Actions and Settings */}
+            <div className="flex items-center gap-2 text-sm">
+              {/* Action Buttons */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveRecord}
+                disabled={metrics.completedRequests === 0 || saveRecordMutation.isPending}
+                className="gap-1 h-7 px-2 text-xs"
+              >
+                <Save className="w-3 h-3" />
+                保存
+              </Button>
+              
+              <TestHistory onCompare={handleCompare} />
+              
+              <ReportExport 
+                metrics={metrics} 
+                logs={logs} 
+                timeSeries={timeSeries}
+                aiAnalysis={aiAnalysisResult}
               />
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span>限流:</span>
-              <Input
-                type="number"
-                value={qpsLimit}
-                onChange={(e) => setQpsLimit(Math.max(1, parseInt(e.target.value) || 1))}
-                min={1}
-                className="w-24 h-7 bg-input text-sm font-mono text-primary text-center"
-                disabled={!isIdle}
-              />
-              <span>QPS</span>
+              
+              {/* Divider */}
+              <div className="w-px h-6 bg-border mx-1" />
+              
+              {/* Limit Settings */}
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="text-xs">并发:</span>
+                <Input
+                  type="number"
+                  value={concurrencyLimit}
+                  onChange={(e) => setConcurrencyLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  className="w-16 h-6 bg-input text-xs font-mono text-primary text-center"
+                  disabled={!isIdle}
+                />
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="text-xs">限流:</span>
+                <Input
+                  type="number"
+                  value={qpsLimit}
+                  onChange={(e) => setQpsLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  className="w-16 h-6 bg-input text-xs font-mono text-primary text-center"
+                  disabled={!isIdle}
+                />
+                <span className="text-xs">QPS</span>
+              </div>
             </div>
           </div>
         </header>

@@ -502,9 +502,9 @@ export function ReportExport({ metrics, logs, timeSeries, aiAnalysis }: ReportEx
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={!hasData}>
-          <FileText className="w-4 h-4 mr-2" />
-          导出报告
+        <Button variant="outline" size="sm" disabled={!hasData} className="gap-1 h-7 px-2 text-xs">
+          <FileText className="w-3 h-3" />
+          报告
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
