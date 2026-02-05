@@ -6,15 +6,16 @@
  * - Three-column layout: Config | Monitor | Status
  */
 
+import { useState } from 'react';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ConfigPanel } from '@/components/ConfigPanel';
-import { MetricCard, MetricGrid, LargeMetric } from '@/components/MetricCard';
+import { MetricCard, MetricGrid } from '@/components/MetricCard';
 import { QpsChart, LatencyChart, ErrorRateChart, StatusCodeChart, LatencyDistribution, SuccessRatePie } from '@/components/Charts';
 import { LogPanel } from '@/components/LogPanel';
 import { StatusIndicator } from '@/components/StatusIndicator';
+import { Input } from '@/components/ui/input';
 import { 
   Activity, 
-  Zap, 
   Clock, 
   CheckCircle2, 
   XCircle, 
@@ -37,6 +38,12 @@ export default function Home() {
     resetTest,
   } = useStressTest();
 
+  // Editable limits
+  const [concurrencyLimit, setConcurrencyLimit] = useState(100);
+  const [qpsLimit, setQpsLimit] = useState(1000);
+
+  const isIdle = status === 'idle' || status === 'completed' || status === 'error';
+
   return (
     <div className="min-h-screen flex bg-background">
       {/* Left Panel - Configuration */}
@@ -47,6 +54,10 @@ export default function Home() {
         onResume={resumeTest}
         onReset={resetTest}
         status={status}
+        concurrencyLimit={concurrencyLimit}
+        qpsLimit={qpsLimit}
+        onConcurrencyLimitChange={setConcurrencyLimit}
+        onQpsLimitChange={setQpsLimit}
       />
 
       {/* Main Content Area */}
@@ -65,11 +76,26 @@ export default function Home() {
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>并发限制:</span>
-              <span className="font-mono text-primary">100</span>
+              <Input
+                type="number"
+                value={concurrencyLimit}
+                onChange={(e) => setConcurrencyLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                min={1}
+                className="w-20 h-7 bg-input text-sm font-mono text-primary text-center"
+                disabled={!isIdle}
+              />
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>限流:</span>
-              <span className="font-mono text-primary">1000 QPS</span>
+              <Input
+                type="number"
+                value={qpsLimit}
+                onChange={(e) => setQpsLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                min={1}
+                className="w-24 h-7 bg-input text-sm font-mono text-primary text-center"
+                disabled={!isIdle}
+              />
+              <span>QPS</span>
             </div>
           </div>
         </header>

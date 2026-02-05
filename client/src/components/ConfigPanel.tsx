@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Square, Pause, RotateCcw, Settings, Zap, Clock, Target } from 'lucide-react';
+import { Play, Square, Pause, RotateCcw, Settings, Zap, Clock, Target, AlertTriangle } from 'lucide-react';
 import type { TestConfig, TestStatus } from '@/hooks/useStressTest';
 
 interface ConfigPanelProps {
@@ -22,6 +22,10 @@ interface ConfigPanelProps {
   onResume: () => void;
   onReset: () => void;
   status: TestStatus;
+  concurrencyLimit: number;
+  qpsLimit: number;
+  onConcurrencyLimitChange: (value: number) => void;
+  onQpsLimitChange: (value: number) => void;
 }
 
 const defaultConfig: TestConfig = {
@@ -59,7 +63,18 @@ const defaultConfig: TestConfig = {
   totalRequests: 1000,
 };
 
-export function ConfigPanel({ onStart, onStop, onPause, onResume, onReset, status }: ConfigPanelProps) {
+export function ConfigPanel({ 
+  onStart, 
+  onStop, 
+  onPause, 
+  onResume, 
+  onReset, 
+  status,
+  concurrencyLimit,
+  qpsLimit,
+  onConcurrencyLimitChange,
+  onQpsLimitChange,
+}: ConfigPanelProps) {
   const [config, setConfig] = useState<TestConfig>(defaultConfig);
   const [headersText, setHeadersText] = useState(JSON.stringify(defaultConfig.headers, null, 2));
   const [useDuration, setUseDuration] = useState(true);
@@ -85,6 +100,10 @@ export function ConfigPanel({ onStart, onStop, onPause, onResume, onReset, statu
   const isRunning = status === 'running';
   const isPaused = status === 'paused';
   const isIdle = status === 'idle' || status === 'completed' || status === 'error';
+
+  // Check if current values exceed limits
+  const concurrencyExceedsLimit = config.concurrency > concurrencyLimit;
+  const qpsExceedsLimit = config.qps > qpsLimit;
 
   return (
     <div className="w-80 bg-sidebar border-r border-sidebar-border flex flex-col h-full">
@@ -146,18 +165,44 @@ export function ConfigPanel({ onStart, onStop, onPause, onResume, onReset, statu
                   <Zap className="w-3 h-3" />
                   并发数
                 </Label>
-                <span className="text-sm font-mono text-primary">{config.concurrency}</span>
+                <Input
+                  type="number"
+                  value={config.concurrency}
+                  onChange={(e) => setConfig(prev => ({ ...prev, concurrency: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  min={1}
+                  className="w-20 h-7 bg-input text-sm font-mono text-right"
+                  disabled={!isIdle}
+                />
               </div>
               <Slider
                 value={[config.concurrency]}
                 onValueChange={([value]) => setConfig(prev => ({ ...prev, concurrency: value }))}
                 min={1}
-                max={200}
+                max={Math.max(500, concurrencyLimit * 2)}
                 step={1}
                 disabled={!isIdle}
                 className="py-2"
               />
-              <p className="text-xs text-muted-foreground">API限制: 100并发</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">API限制:</span>
+                  <Input
+                    type="number"
+                    value={concurrencyLimit}
+                    onChange={(e) => onConcurrencyLimitChange(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    className="w-16 h-6 bg-input text-xs font-mono text-center px-1"
+                    disabled={!isIdle}
+                  />
+                  <span className="text-xs text-muted-foreground">并发</span>
+                </div>
+                {concurrencyExceedsLimit && (
+                  <div className="flex items-center gap-1 text-chart-4">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span className="text-xs">超限</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* QPS */}
@@ -167,18 +212,44 @@ export function ConfigPanel({ onStart, onStop, onPause, onResume, onReset, statu
                   <Target className="w-3 h-3" />
                   目标QPS
                 </Label>
-                <span className="text-sm font-mono text-primary">{config.qps}</span>
+                <Input
+                  type="number"
+                  value={config.qps}
+                  onChange={(e) => setConfig(prev => ({ ...prev, qps: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  min={1}
+                  className="w-20 h-7 bg-input text-sm font-mono text-right"
+                  disabled={!isIdle}
+                />
               </div>
               <Slider
                 value={[config.qps]}
                 onValueChange={([value]) => setConfig(prev => ({ ...prev, qps: value }))}
                 min={1}
-                max={2000}
+                max={Math.max(5000, qpsLimit * 2)}
                 step={10}
                 disabled={!isIdle}
                 className="py-2"
               />
-              <p className="text-xs text-muted-foreground">API限流: 1000 QPS</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">API限流:</span>
+                  <Input
+                    type="number"
+                    value={qpsLimit}
+                    onChange={(e) => onQpsLimitChange(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    className="w-16 h-6 bg-input text-xs font-mono text-center px-1"
+                    disabled={!isIdle}
+                  />
+                  <span className="text-xs text-muted-foreground">QPS</span>
+                </div>
+                {qpsExceedsLimit && (
+                  <div className="flex items-center gap-1 text-chart-4">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span className="text-xs">超限</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Duration Mode Toggle */}
@@ -199,13 +270,20 @@ export function ConfigPanel({ onStart, onStop, onPause, onResume, onReset, statu
                       <Clock className="w-3 h-3" />
                       测试时长 (秒)
                     </Label>
-                    <span className="text-sm font-mono text-primary">{config.duration}s</span>
+                    <Input
+                      type="number"
+                      value={config.duration}
+                      onChange={(e) => setConfig(prev => ({ ...prev, duration: Math.max(1, parseInt(e.target.value) || 1) }))}
+                      min={1}
+                      className="w-20 h-7 bg-input text-sm font-mono text-right"
+                      disabled={!isIdle}
+                    />
                   </div>
                   <Slider
                     value={[config.duration]}
                     onValueChange={([value]) => setConfig(prev => ({ ...prev, duration: value }))}
                     min={5}
-                    max={300}
+                    max={600}
                     step={5}
                     disabled={!isIdle}
                     className="py-2"
