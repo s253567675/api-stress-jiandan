@@ -7,12 +7,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 
-// Success condition configuration for response validation
-export interface SuccessCondition {
-  enabled: boolean;
+// Single assertion rule for response validation
+export interface AssertionRule {
+  id: string; // Unique identifier for the rule
   field: string; // JSON path to check, e.g., "code" or "data.status"
   operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'exists' | 'notExists';
   value: string; // Expected value (string representation)
+}
+
+// Success condition configuration for response validation (supports multiple rules)
+export interface SuccessCondition {
+  enabled: boolean;
+  rules: AssertionRule[]; // Multiple assertion rules
+  logic: 'AND' | 'OR'; // How to combine multiple rules
+  // Legacy single-rule fields (for backward compatibility)
+  field?: string;
+  operator?: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'exists' | 'notExists';
+  value?: string;
 }
 
 // Ramp-up configuration for gradual load increase
@@ -49,6 +60,7 @@ export interface RequestResult {
   error?: string;
   size?: number;
   businessCode?: string; // 业务状态码（从响应体中提取）
+  responseBody?: string; // 响应体内容（用于预览）
 }
 
 export interface TestMetrics {
@@ -269,6 +281,9 @@ export function useStressTest() {
       // Check success condition based on response body (same as proxy mode)
       const { success: isSuccess, businessCode } = checkSuccessCondition(responseBody, config.successCondition, response.ok);
 
+      // Truncate response body for storage (keep first 2KB for preview)
+      const truncatedBody = responseBody ? responseBody.slice(0, 2048) : undefined;
+
       return {
         id,
         timestamp: Date.now(),
@@ -277,6 +292,7 @@ export function useStressTest() {
         success: isSuccess,
         size,
         businessCode,
+        responseBody: truncatedBody,
       };
     } catch (error) {
       const endTime = performance.now();
@@ -322,6 +338,34 @@ export function useStressTest() {
   };
 
   // Check if response matches success condition and extract business code
+  // Check a single assertion rule against parsed JSON body
+  const checkSingleRule = (
+    jsonBody: unknown,
+    field: string,
+    operator: string,
+    value: string
+  ): boolean => {
+    const fieldValue = getNestedValue(jsonBody, field);
+    const stringValue = fieldValue !== undefined && fieldValue !== null ? String(fieldValue) : undefined;
+
+    switch (operator) {
+      case 'equals':
+        return stringValue === value;
+      case 'notEquals':
+        return stringValue !== value;
+      case 'contains':
+        return stringValue !== undefined && stringValue.includes(value);
+      case 'notContains':
+        return stringValue === undefined || !stringValue.includes(value);
+      case 'exists':
+        return fieldValue !== undefined;
+      case 'notExists':
+        return fieldValue === undefined;
+      default:
+        return false;
+    }
+  };
+
   const checkSuccessCondition = (responseBody: string | null, condition: SuccessCondition | undefined, httpSuccess: boolean): { success: boolean; businessCode?: string } => {
     // If no custom condition, use HTTP status code
     if (!condition || !condition.enabled) {
@@ -330,46 +374,48 @@ export function useStressTest() {
 
     // Try to parse response as JSON
     if (!responseBody) {
-      return { success: condition.operator === 'notExists' };
+      // Check if any rule expects notExists
+      const rules = condition.rules && condition.rules.length > 0 ? condition.rules : 
+        (condition.field ? [{ id: 'legacy', field: condition.field, operator: condition.operator || 'equals', value: condition.value || '' }] : []);
+      const hasNotExistsRule = rules.some(r => r.operator === 'notExists');
+      return { success: hasNotExistsRule };
     }
 
     let jsonBody: unknown;
     try {
       jsonBody = JSON.parse(responseBody);
     } catch {
-      // If not valid JSON, can only check exists/notExists
-      if (condition.operator === 'notExists') return { success: true };
-      if (condition.operator === 'exists') return { success: false };
-      return { success: false };
+      // If not valid JSON, only notExists rules can pass
+      const rules = condition.rules && condition.rules.length > 0 ? condition.rules : 
+        (condition.field ? [{ id: 'legacy', field: condition.field, operator: condition.operator || 'equals', value: condition.value || '' }] : []);
+      const hasNotExistsRule = rules.some(r => r.operator === 'notExists');
+      return { success: hasNotExistsRule };
     }
 
-    const fieldValue = getNestedValue(jsonBody, condition.field);
-    const stringValue = fieldValue !== undefined && fieldValue !== null ? String(fieldValue) : undefined;
-    // 提取业务状态码，如果字段不存在则记录为 "N/A"
-    const businessCode = stringValue !== undefined ? stringValue : 'N/A';
+    // Get rules (support both new multi-rule format and legacy single-rule format)
+    const rules = condition.rules && condition.rules.length > 0 ? condition.rules : 
+      (condition.field ? [{ id: 'legacy', field: condition.field, operator: condition.operator || 'equals', value: condition.value || '' }] : []);
+    
+    if (rules.length === 0) {
+      return { success: httpSuccess };
+    }
 
-    let success = false;
-    switch (condition.operator) {
-      case 'equals':
-        success = stringValue === condition.value;
-        break;
-      case 'notEquals':
-        success = stringValue !== condition.value;
-        break;
-      case 'contains':
-        success = stringValue !== undefined && stringValue.includes(condition.value);
-        break;
-      case 'notContains':
-        success = stringValue === undefined || !stringValue.includes(condition.value);
-        break;
-      case 'exists':
-        success = fieldValue !== undefined;
-        break;
-      case 'notExists':
-        success = fieldValue === undefined;
-        break;
-      default:
-        success = httpSuccess;
+    // Extract business code from the first rule's field
+    const firstField = rules[0].field;
+    const firstFieldValue = getNestedValue(jsonBody, firstField);
+    const businessCode = firstFieldValue !== undefined && firstFieldValue !== null ? String(firstFieldValue) : 'N/A';
+
+    // Check all rules based on logic (AND/OR)
+    const logic = condition.logic || 'AND';
+    const ruleResults = rules.map(rule => 
+      checkSingleRule(jsonBody, rule.field, rule.operator, rule.value)
+    );
+
+    let success: boolean;
+    if (logic === 'AND') {
+      success = ruleResults.every(r => r);
+    } else {
+      success = ruleResults.some(r => r);
     }
 
     return { success, businessCode };
@@ -401,6 +447,9 @@ export function useStressTest() {
       // Check success condition based on response body
       const { success: isSuccess, businessCode } = checkSuccessCondition(result.body, config.successCondition, result.success);
 
+      // Truncate response body for storage (keep first 2KB for preview)
+      const truncatedBody = result.body ? result.body.slice(0, 2048) : undefined;
+
       return {
         id,
         timestamp: Date.now(),
@@ -410,6 +459,7 @@ export function useStressTest() {
         size: result.body ? new Blob([result.body]).size : 0,
         error: result.error,
         businessCode,
+        responseBody: truncatedBody,
       };
     } catch (error) {
       const endTime = performance.now();

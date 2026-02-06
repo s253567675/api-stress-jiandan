@@ -16,9 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Play, Square, Pause, RotateCcw, Settings, Zap, Clock, Target, 
-  AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe, TrendingUp
+  AlertTriangle, Download, Upload, CheckCircle2, XCircle, Shield, Timer, Globe, TrendingUp,
+  Plus, Trash2
 } from 'lucide-react';
-import type { TestConfig, TestStatus, SuccessCondition, RampUpConfig } from '@/hooks/useStressTest';
+import type { TestConfig, TestStatus, SuccessCondition, RampUpConfig, AssertionRule } from '@/hooks/useStressTest';
 import { RampUpPreview } from './RampUpPreview';
 import { ConfigTemplates } from './ConfigTemplates';
 
@@ -48,9 +49,13 @@ const defaultConfig: TestConfig = {
   timeout: 30000, // 30 seconds default timeout
   successCondition: {
     enabled: true,
-    field: 'code',
-    operator: 'equals',
-    value: '0',
+    rules: [{
+      id: 'rule-1',
+      field: 'code',
+      operator: 'equals',
+      value: '0',
+    }],
+    logic: 'AND',
   },
   rampUp: {
     enabled: false,
@@ -996,65 +1001,161 @@ export function ConfigPanel({
               
               {config.successCondition?.enabled && (
                 <div className="space-y-3 pt-2 border-t border-border">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">字段路径</Label>
-                    <Input
-                      value={config.successCondition?.field || ''}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        successCondition: { ...prev.successCondition!, field: e.target.value }
-                      }))}
-                      placeholder="code 或 data.status"
-                      className="bg-input text-sm font-mono"
-                      disabled={!isIdle}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      支持嵌套路径，如: data.result.code
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">匹配条件</Label>
-                    <Select
-                      value={config.successCondition?.operator || 'equals'}
-                      onValueChange={(value) => setConfig(prev => ({
-                        ...prev,
-                        successCondition: { ...prev.successCondition!, operator: value as SuccessCondition['operator'] }
-                      }))}
-                      disabled={!isIdle}
-                    >
-                      <SelectTrigger className="bg-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="equals">等于</SelectItem>
-                        <SelectItem value="notEquals">不等于</SelectItem>
-                        <SelectItem value="contains">包含</SelectItem>
-                        <SelectItem value="notContains">不包含</SelectItem>
-                        <SelectItem value="exists">字段存在</SelectItem>
-                        <SelectItem value="notExists">字段不存在</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {config.successCondition?.operator !== 'exists' && config.successCondition?.operator !== 'notExists' && (
+                  {/* Logic selector for multiple rules */}
+                  {(config.successCondition?.rules?.length || 0) > 1 && (
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">期望值</Label>
-                      <Input
-                        value={config.successCondition?.value || ''}
-                        onChange={(e) => setConfig(prev => ({
+                      <Label className="text-xs text-muted-foreground">组合逻辑</Label>
+                      <Select
+                        value={config.successCondition?.logic || 'AND'}
+                        onValueChange={(value) => setConfig(prev => ({
                           ...prev,
-                          successCondition: { ...prev.successCondition!, value: e.target.value }
+                          successCondition: { ...prev.successCondition!, logic: value as 'AND' | 'OR' }
                         }))}
-                        placeholder="0"
-                        className="bg-input text-sm font-mono"
                         disabled={!isIdle}
-                      />
+                      >
+                        <SelectTrigger className="bg-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AND">全部满足 (AND)</SelectItem>
+                          <SelectItem value="OR">任一满足 (OR)</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <p className="text-xs text-muted-foreground">
-                        例如: code=0 表示成功
+                        {config.successCondition?.logic === 'OR' 
+                          ? '任意一个条件满足即为成功' 
+                          : '所有条件都满足才为成功'}
                       </p>
                     </div>
                   )}
+
+                  {/* Assertion rules list */}
+                  <div className="space-y-2">
+                    {(config.successCondition?.rules || []).map((rule, index) => (
+                      <div key={rule.id} className="p-2 rounded-lg bg-muted/30 border border-border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">条件 {index + 1}</span>
+                          {(config.successCondition?.rules?.length || 0) > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={() => {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  successCondition: {
+                                    ...prev.successCondition!,
+                                    rules: prev.successCondition!.rules.filter(r => r.id !== rule.id)
+                                  }
+                                }));
+                              }}
+                              disabled={!isIdle}
+                            >
+                              <Trash2 className="w-3 h-3 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <Input
+                          value={rule.field}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              successCondition: {
+                                ...prev.successCondition!,
+                                rules: prev.successCondition!.rules.map(r => 
+                                  r.id === rule.id ? { ...r, field: e.target.value } : r
+                                )
+                              }
+                            }));
+                          }}
+                          placeholder="字段路径: code 或 data.status"
+                          className="bg-input text-xs font-mono h-7"
+                          disabled={!isIdle}
+                        />
+                        
+                        <div className="flex gap-2">
+                          <Select
+                            value={rule.operator}
+                            onValueChange={(value) => {
+                              setConfig(prev => ({
+                                ...prev,
+                                successCondition: {
+                                  ...prev.successCondition!,
+                                  rules: prev.successCondition!.rules.map(r => 
+                                    r.id === rule.id ? { ...r, operator: value as AssertionRule['operator'] } : r
+                                  )
+                                }
+                              }));
+                            }}
+                            disabled={!isIdle}
+                          >
+                            <SelectTrigger className="bg-input h-7 text-xs w-24">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="equals">等于</SelectItem>
+                              <SelectItem value="notEquals">不等于</SelectItem>
+                              <SelectItem value="contains">包含</SelectItem>
+                              <SelectItem value="notContains">不包含</SelectItem>
+                              <SelectItem value="exists">存在</SelectItem>
+                              <SelectItem value="notExists">不存在</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          {rule.operator !== 'exists' && rule.operator !== 'notExists' && (
+                            <Input
+                              value={rule.value}
+                              onChange={(e) => {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  successCondition: {
+                                    ...prev.successCondition!,
+                                    rules: prev.successCondition!.rules.map(r => 
+                                      r.id === rule.id ? { ...r, value: e.target.value } : r
+                                    )
+                                  }
+                                }));
+                              }}
+                              placeholder="期望值"
+                              className="bg-input text-xs font-mono h-7 flex-1"
+                              disabled={!isIdle}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add rule button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-7 text-xs"
+                    onClick={() => {
+                      const newRule: AssertionRule = {
+                        id: `rule-${Date.now()}`,
+                        field: '',
+                        operator: 'equals',
+                        value: '',
+                      };
+                      setConfig(prev => ({
+                        ...prev,
+                        successCondition: {
+                          ...prev.successCondition!,
+                          rules: [...(prev.successCondition?.rules || []), newRule]
+                        }
+                      }));
+                    }}
+                    disabled={!isIdle}
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    添加条件
+                  </Button>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    支持多个断言条件组合，字段路径支持嵌套，如: data.result.code
+                  </p>
                 </div>
               )}
             </div>
