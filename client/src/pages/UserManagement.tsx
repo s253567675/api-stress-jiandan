@@ -45,7 +45,10 @@ import {
   Shield,
   UserCheck,
   UserX,
+  ArrowLeft,
+  Gauge,
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 
 type UserFormData = {
@@ -65,6 +68,7 @@ const initialFormData: UserFormData = {
 };
 
 export default function UserManagement() {
+  const [, setLocation] = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
@@ -186,9 +190,24 @@ export default function UserManagement() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">用户管理</h1>
-            <p className="text-muted-foreground">管理系统用户账号和权限</p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/')}
+              className="h-10 w-10"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Gauge className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">用户管理</h1>
+                <p className="text-muted-foreground">管理系统用户账号和权限</p>
+              </div>
+            </div>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
