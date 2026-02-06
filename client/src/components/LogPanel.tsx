@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Eye, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, Copy, Check, Download } from 'lucide-react';
 import type { RequestResult } from '@/hooks/useStressTest';
 import { cn } from '@/lib/utils';
 
@@ -79,6 +79,65 @@ export function LogPanel({ logs }: LogPanelProps) {
     }
   };
 
+  // Export logs to CSV
+  const exportToCSV = () => {
+    if (logs.length === 0) return;
+
+    // CSV header
+    const headers = [
+      '序号',
+      '时间戳',
+      '时间',
+      '耗时(ms)',
+      'HTTP状态码',
+      '业务状态码',
+      '是否成功',
+      '响应大小(bytes)',
+      '错误信息',
+      '响应体'
+    ];
+
+    // CSV rows
+    const rows = logs.map((log, index) => [
+      index + 1,
+      log.timestamp,
+      formatTime(log.timestamp),
+      log.duration.toFixed(2),
+      log.status,
+      log.businessCode || 'N/A',
+      log.success ? '成功' : '失败',
+      log.size || 0,
+      log.error || '',
+      // Escape quotes and newlines in response body
+      log.responseBody ? `"${log.responseBody.replace(/"/g, '""').replace(/\n/g, ' ')}"` : ''
+    ]);
+
+    // Build CSV content with BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // Wrap cells containing commas, quotes, or newlines in quotes
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `压测日志_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <div className="data-card flex flex-col">
@@ -93,6 +152,17 @@ export function LogPanel({ logs }: LogPanelProps) {
             </Badge>
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={exportToCSV}
+              disabled={logs.length === 0}
+              title="导出CSV"
+            >
+              <Download className="h-3 w-3 mr-1" />
+              CSV
+            </Button>
             <Button
               variant="ghost"
               size="sm"
