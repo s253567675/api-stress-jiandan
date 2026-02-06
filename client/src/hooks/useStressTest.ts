@@ -253,25 +253,30 @@ export function useStressTest() {
       const endTime = performance.now();
       const duration = endTime - startTime;
       
-      // Try to get response size
+      // Try to get response body and size
       let size = 0;
+      let responseBody: string | null = null;
       try {
-        const text = await response.text();
-        size = new Blob([text]).size;
+        responseBody = await response.text();
+        size = new Blob([responseBody]).size;
       } catch {
-        // Ignore size calculation errors
+        // Ignore body read errors
       }
 
       activeConnectionsRef.current--;
       lastSecondRequestsRef.current.push(Date.now());
+
+      // Check success condition based on response body (same as proxy mode)
+      const { success: isSuccess, businessCode } = checkSuccessCondition(responseBody, config.successCondition, response.ok);
 
       return {
         id,
         timestamp: Date.now(),
         duration,
         status: response.status,
-        success: response.ok,
+        success: isSuccess,
         size,
+        businessCode,
       };
     } catch (error) {
       const endTime = performance.now();
