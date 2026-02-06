@@ -22,7 +22,7 @@ import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
+
 import { 
   Activity, 
   Clock, 
@@ -48,9 +48,6 @@ export default function Home() {
     currentConfig,
   } = useStressTest();
 
-  // Editable limits
-  const [concurrencyLimit, setConcurrencyLimit] = useState(100);
-  const [qpsLimit, setQpsLimit] = useState(1000);
   
   // AI Analysis result for report export
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
@@ -113,10 +110,6 @@ export default function Home() {
         onResume={resumeTest}
         onReset={resetTest}
         status={status}
-        concurrencyLimit={concurrencyLimit}
-        qpsLimit={qpsLimit}
-        onConcurrencyLimitChange={setConcurrencyLimit}
-        onQpsLimitChange={setQpsLimit}
       />
 
       {/* Main Content Area */}
@@ -158,33 +151,7 @@ export default function Home() {
                 aiAnalysis={aiAnalysisResult}
               />
               
-              {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1" />
-              
-              {/* Limit Settings */}
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="text-xs">并发:</span>
-                <Input
-                  type="number"
-                  value={concurrencyLimit}
-                  onChange={(e) => setConcurrencyLimit(Math.max(1, parseInt(e.target.value) || 1))}
-                  min={1}
-                  className="w-16 h-6 bg-input text-xs font-mono text-primary text-center"
-                  disabled={!isIdle}
-                />
-              </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="text-xs">限流:</span>
-                <Input
-                  type="number"
-                  value={qpsLimit}
-                  onChange={(e) => setQpsLimit(Math.max(1, parseInt(e.target.value) || 1))}
-                  min={1}
-                  className="w-16 h-6 bg-input text-xs font-mono text-primary text-center"
-                  disabled={!isIdle}
-                />
-                <span className="text-xs">QPS</span>
-              </div>
+
             </div>
           </div>
         </header>

@@ -30,10 +30,6 @@ interface ConfigPanelProps {
   onResume: () => void;
   onReset: () => void;
   status: TestStatus;
-  concurrencyLimit: number;
-  qpsLimit: number;
-  onConcurrencyLimitChange: (value: number) => void;
-  onQpsLimitChange: (value: number) => void;
 }
 
 const defaultConfig: TestConfig = {
@@ -88,10 +84,6 @@ export function ConfigPanel({
   onResume, 
   onReset, 
   status,
-  concurrencyLimit,
-  qpsLimit,
-  onConcurrencyLimitChange,
-  onQpsLimitChange,
 }: ConfigPanelProps) {
   const [config, setConfig] = useState<TestConfig>(defaultConfig);
   const [headersText, setHeadersText] = useState('');
@@ -232,8 +224,7 @@ export function ConfigPanel({
       useProxy: config.useProxy,
       timeout: config.timeout,
       useDuration,
-      concurrencyLimit,
-      qpsLimit,
+
       authType,
       authToken: authType === 'bearer' ? authToken : '',
       basicUsername: authType === 'basic' ? basicUsername : '',
@@ -294,13 +285,6 @@ export function ConfigPanel({
           setUseDuration(importedData.useDuration);
         }
 
-        // Update limits if provided
-        if (importedData.concurrencyLimit) {
-          onConcurrencyLimitChange(importedData.concurrencyLimit);
-        }
-        if (importedData.qpsLimit) {
-          onQpsLimitChange(importedData.qpsLimit);
-        }
 
         // Update auth settings
         if (importedData.authType) {
@@ -331,9 +315,7 @@ export function ConfigPanel({
   const isPaused = status === 'paused';
   const isIdle = status === 'idle' || status === 'completed' || status === 'error';
 
-  // Check if current values exceed limits
-  const concurrencyExceedsLimit = config.concurrency > concurrencyLimit;
-  const qpsExceedsLimit = config.qps > qpsLimit;
+  // Removed limit checking - no longer needed
   const isUrlValid = config.url.trim() !== '' && isValidUrl(config.url);
 
   return (
@@ -469,31 +451,12 @@ export function ConfigPanel({
                 value={[config.concurrency]}
                 onValueChange={([value]) => setConfig(prev => ({ ...prev, concurrency: value }))}
                 min={1}
-                max={Math.max(500, concurrencyLimit * 2)}
+                max={500}
                 step={1}
                 disabled={!isIdle}
                 className="py-2"
               />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground">API限制:</span>
-                  <Input
-                    type="number"
-                    value={concurrencyLimit}
-                    onChange={(e) => onConcurrencyLimitChange(Math.max(1, parseInt(e.target.value) || 1))}
-                    min={1}
-                    className="w-16 h-6 bg-input text-xs font-mono text-center px-1"
-                    disabled={!isIdle}
-                  />
-                  <span className="text-xs text-muted-foreground">并发</span>
-                </div>
-                {concurrencyExceedsLimit && (
-                  <div className="flex items-center gap-1 text-chart-4">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span className="text-xs">超限</span>
-                  </div>
-                )}
-              </div>
+
             </div>
 
             {/* QPS */}
@@ -516,31 +479,12 @@ export function ConfigPanel({
                 value={[config.qps]}
                 onValueChange={([value]) => setConfig(prev => ({ ...prev, qps: value }))}
                 min={1}
-                max={Math.max(5000, qpsLimit * 2)}
+                max={5000}
                 step={10}
                 disabled={!isIdle}
                 className="py-2"
               />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground">API限流:</span>
-                  <Input
-                    type="number"
-                    value={qpsLimit}
-                    onChange={(e) => onQpsLimitChange(Math.max(1, parseInt(e.target.value) || 1))}
-                    min={1}
-                    className="w-16 h-6 bg-input text-xs font-mono text-center px-1"
-                    disabled={!isIdle}
-                  />
-                  <span className="text-xs text-muted-foreground">QPS</span>
-                </div>
-                {qpsExceedsLimit && (
-                  <div className="flex items-center gap-1 text-chart-4">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span className="text-xs">超限</span>
-                  </div>
-                )}
-              </div>
+
             </div>
 
             {/* Duration Mode Toggle */}
@@ -836,7 +780,7 @@ export function ConfigPanel({
                         qps: value
                       }))}
                       min={1}
-                      max={Math.max(5000, qpsLimit * 2)}
+                      max={5000}
                       step={10}
                       disabled={!isIdle}
                       className="py-2"
