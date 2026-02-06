@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
-import { COOKIE_NAME } from "../shared/const";
+import { COOKIE_NAME, LOCAL_COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
 
 type CookieCall = {
@@ -42,16 +42,31 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
 }
 
 describe("auth.logout", () => {
-  it("clears the session cookie and reports success", async () => {
+  it("clears both OAuth and local session cookies and reports success", async () => {
     const { ctx, clearedCookies } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const result = await caller.auth.logout();
 
     expect(result).toEqual({ success: true });
-    expect(clearedCookies).toHaveLength(1);
-    expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
-    expect(clearedCookies[0]?.options).toMatchObject({
+    // Now clears both OAuth and local cookies
+    expect(clearedCookies).toHaveLength(2);
+    
+    // Check OAuth cookie
+    const oauthCookie = clearedCookies.find(c => c.name === COOKIE_NAME);
+    expect(oauthCookie).toBeDefined();
+    expect(oauthCookie?.options).toMatchObject({
+      maxAge: -1,
+      secure: true,
+      sameSite: "none",
+      httpOnly: true,
+      path: "/",
+    });
+    
+    // Check local cookie
+    const localCookie = clearedCookies.find(c => c.name === LOCAL_COOKIE_NAME);
+    expect(localCookie).toBeDefined();
+    expect(localCookie?.options).toMatchObject({
       maxAge: -1,
       secure: true,
       sameSite: "none",

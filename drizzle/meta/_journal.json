@@ -22,6 +22,13 @@
       "when": 1770284219300,
       "tag": "0002_big_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1770341464679,
+      "tag": "0003_naive_katie_power",
+      "breakpoints": true
     }
   ]
 }

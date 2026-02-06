@@ -31,10 +31,27 @@ import {
   Timer,
   TrendingUp,
   BarChart3,
-  Gauge
+  Gauge,
+  User,
+  LogOut,
+  Settings,
+  Shield
 } from 'lucide-react';
+import { useAuth } from '@/_core/hooks/useAuth';
+import { useLocation } from 'wouter';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Home() {
+  const [, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+  
   const {
     status,
     metrics,
@@ -47,6 +64,11 @@ export default function Home() {
     resetTest,
     currentConfig,
   } = useStressTest();
+  
+  const handleLogout = async () => {
+    await logout();
+    setLocation('/login');
+  };
 
   
   // AI Analysis result for report export
@@ -151,7 +173,36 @@ export default function Home() {
                 aiAnalysis={aiAnalysisResult}
               />
               
-
+              {/* User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs">
+                    <User className="w-3 h-3" />
+                    {user?.name || user?.username || '用户'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
+                      <span>{user?.name || user?.username}</span>
+                      <span className="text-xs text-muted-foreground font-normal">
+                        {user?.role === 'admin' ? '管理员' : '普通用户'}
+                      </span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {user?.role === 'admin' && (
+                    <DropdownMenuItem onClick={() => setLocation('/admin/users')}>
+                      <Shield className="w-4 h-4 mr-2" />
+                      用户管理
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    退出登录
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
