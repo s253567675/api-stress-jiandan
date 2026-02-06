@@ -88,20 +88,23 @@ export function QpsChart({ data }: QpsChartProps) {
             tickLine={{ stroke: '#64748b' }}
             width={50}
           />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#e2e8f0',
-            }}
-            labelFormatter={(v) => `时间: ${v}s`}
-            formatter={(value: number, name: string) => {
-              if (name === 'targetQps') return [`${value} req/s`, '目标QPS'];
-              return [`${value} req/s`, '实际QPS'];
-            }}
-          />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                fontSize: '12px',
+                color: '#f1f5f9',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
+              }}
+              itemStyle={{ color: '#f1f5f9' }}
+              labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
+              labelFormatter={(v) => `时间: ${v}s`}
+              formatter={(value: number, name: string) => {
+                if (name === 'targetQps') return [`${value} req/s`, '目标QPS'];
+                return [`${value} req/s`, '实际QPS'];
+              }}
+            />
           {/* Target QPS line (dashed) - rendered first so it's behind */}
           {hasTargetQps && (
             <Line
@@ -156,12 +159,15 @@ export function LatencyChart({ data }: LatencyChartProps) {
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1e293b',
+              backgroundColor: '#0f172a',
               border: '1px solid #334155',
               borderRadius: '8px',
               fontSize: '12px',
-              color: '#e2e8f0',
+              color: '#f1f5f9',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
             }}
+            itemStyle={{ color: '#f1f5f9' }}
+            labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
             labelFormatter={(v) => `时间: ${v}s`}
             formatter={(value: number) => [`${value} ms`, '延迟']}
           />
@@ -213,12 +219,15 @@ export function ErrorRateChart({ data }: ErrorRateChartProps) {
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1e293b',
+              backgroundColor: '#0f172a',
               border: '1px solid #334155',
               borderRadius: '8px',
               fontSize: '12px',
-              color: '#e2e8f0',
+              color: '#f1f5f9',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
             }}
+            itemStyle={{ color: '#f1f5f9' }}
+            labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
             labelFormatter={(v) => `时间: ${v}s`}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '错误率']}
           />
@@ -273,12 +282,15 @@ export function StatusCodeChart({ statusCodes, businessCodes, useBusinessCode = 
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1e293b',
+                backgroundColor: '#0f172a',
                 border: '1px solid #334155',
                 borderRadius: '8px',
                 fontSize: '12px',
-                color: '#e2e8f0',
+                color: '#f1f5f9',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
               }}
+              itemStyle={{ color: '#f1f5f9' }}
+              labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
               formatter={(value: number) => [`${value}`, '请求数']}
             />
             <Bar dataKey="count" radius={[4, 4, 0, 0]}>
@@ -349,12 +361,15 @@ export function LatencyDistribution({ metrics }: LatencyDistributionProps) {
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1e293b',
+              backgroundColor: '#0f172a',
               border: '1px solid #334155',
               borderRadius: '8px',
               fontSize: '12px',
-              color: '#e2e8f0',
+              color: '#f1f5f9',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
             }}
+            itemStyle={{ color: '#f1f5f9' }}
+            labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
             formatter={(value: number) => [`${value} ms`, '延迟']}
           />
           <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -406,6 +421,19 @@ export function SuccessRatePie({ successCount, failCount, label = '业务成功�
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: '#f1f5f9',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
+                }}
+                itemStyle={{ color: '#f1f5f9' }}
+                labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
+                formatter={(value: number, name: string) => [`${value.toLocaleString()} 次`, name]}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

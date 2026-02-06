@@ -231,12 +231,16 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                     </Pie>
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
+                        backgroundColor: '#0f172a', 
+                        border: '1px solid #334155',
                         borderRadius: '8px',
+                        color: '#f1f5f9',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
                       }}
+                      itemStyle={{ color: '#f1f5f9' }}
+                      labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={{ color: '#f1f5f9' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -264,12 +268,16 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                     </Pie>
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
+                        backgroundColor: '#0f172a', 
+                        border: '1px solid #334155',
                         borderRadius: '8px',
+                        color: '#f1f5f9',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
                       }}
+                      itemStyle={{ color: '#f1f5f9' }}
+                      labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={{ color: '#f1f5f9' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -317,10 +325,14 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                   />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: '#0f172a', 
+                      border: '1px solid #334155',
                       borderRadius: '8px',
+                      color: '#f1f5f9',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
                     }}
+                    itemStyle={{ color: '#f1f5f9' }}
+                    labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                     formatter={(value: number) => [`${value} 请求`, '数量']}
                   />
                   <Bar dataKey="count" fill="#00d4ff" radius={[4, 4, 0, 0]} />
@@ -368,10 +380,14 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                       />
                       <Tooltip 
                         contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
-                          border: '1px solid hsl(var(--border))',
+                          backgroundColor: '#0f172a', 
+                          border: '1px solid #334155',
                           borderRadius: '8px',
+                          color: '#f1f5f9',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
                         }}
+                        itemStyle={{ color: '#f1f5f9' }}
+                        labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                       />
                       <Bar dataKey="count" fill={COLORS.error} radius={[0, 4, 4, 0]} />
                     </BarChart>
@@ -441,10 +457,14 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                   <ZAxis range={[30, 30]} />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: '#0f172a', 
+                      border: '1px solid #334155',
                       borderRadius: '8px',
+                      color: '#f1f5f9',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
                     }}
+                    itemStyle={{ color: '#f1f5f9' }}
+                    labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                     formatter={(value: number, name: string) => {
                       if (name === '延迟') return [`${value.toFixed(0)}ms`, name];
                       return [value, name];
@@ -460,7 +480,7 @@ export function ResponseViewer({ logs, metrics }: ResponseViewerProps) {
                     fill={COLORS.error}
                     name="失败"
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ color: '#f1f5f9' }} />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
